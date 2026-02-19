@@ -1,0 +1,24 @@
+{
+  "E56B8CF1": {
+    "seller_name": "Arjun Textiles",
+    "buyer_name": "Mega-Retail Corp",
+    "invoice_no": "INV-2025-101",
+    "invoice_date": "2025-02-01",
+    "amount": 500000.0,
+    "udyam_id": "UDYAM-TN-07-0012345",
+    "buyer_gstin": "",
+    "buyer_contact": "finance@megaretail.com",
+    "id": "E56B8CF1",
+    "created_at": "2026-02-19T16:19:36.152197",
+    "paid": false,
+    "paid_at": null,
+    "paid_amount": null,
+    "due_date": "2025-03-18",
+    "status": "ESCALATION",
+    "days_overdue": 338,
+    "days_until_due": 0,
+    "interest_accrued": 90287.67,
+    "total_due": 590287.67,
+    "notices_sent": []
+  }
+}
