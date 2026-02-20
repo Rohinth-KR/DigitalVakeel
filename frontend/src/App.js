@@ -36,8 +36,8 @@ const DUMMY_INVOICE = {
 
 const DAILY_RATE = 0.195 / 365; // 3× RBI rate = 19.5% p.a.
 
-function calcStatus(invoiceDate, paid) {
-  if (paid) return { status: "PAID", daysOverdue: 0, interest: 0, total: 0, daysUntilDue: 0 };
+function calcStatus(invoiceDate, paid, amount = 0) {
+  if (paid) return { status: "PAID", daysOverdue: 0, interest: 0, total: amount, daysUntilDue: 0 };
   const invoice  = new Date(invoiceDate);
   const due      = new Date(invoice); due.setDate(due.getDate() + 45);
   const today    = new Date();
@@ -52,9 +52,9 @@ function calcStatus(invoiceDate, paid) {
   else if (daysOver >= 1)  status = "OVERDUE";
   else if (daysLeft <= 5)  status = "DUE SOON";
 
-  const interest = Math.round(DUMMY_INVOICE.amount * DAILY_RATE * daysOver);
+  const interest = Math.round(amount * DAILY_RATE * daysOver);
   return { status, daysOverdue: daysOver, daysUntilDue: daysLeft,
-           interest, total: DUMMY_INVOICE.amount + interest };
+           interest, total: amount + interest };
 }
 
 // timeline events for the story
@@ -337,38 +337,16 @@ function UploadScreen({ onSubmit }) {
 
   const handleNext = () => { if (validate()) setStep(2); };
   const handleSubmit = async () => {
-  try {
     const payload = {
       ...form,
       amount: Number(form.amount),
     };
 
-    // 🔌 CALL FLASK BACKEND
-    const res = await fetch("http://localhost:5000/invoices", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Server error: ${res.status}`);
+    const saved = await onSubmit(payload);
+    if (saved) {
+      setStep(3);
     }
-
-    const data = await res.json();
-    console.log("Invoice saved:", data);
-
-    // Optional: keep local state if needed
-    onSubmit(payload);
-
-    // ✅ Move to success screen ONLY after backend success
-    setStep(3);
-  } catch (err) {
-    console.error("Invoice submit failed:", err);
-    alert("Failed to submit invoice. Check backend.");
-  }
-};
+  };
 
 
   const Field = ({ label, k, type="text", placeholder="" }) => (
@@ -563,10 +541,9 @@ function UploadScreen({ onSubmit }) {
 
 // ── DASHBOARD SCREEN ──────────────────────────
 function DashboardScreen({ invoice }) {
-  const info = calcStatus(invoice.invoiceDate, invoice.paid);
   const timeline = buildTimeline(invoice.invoiceDate);
   const paid = invoice.paid === true;
-  const liveInfo = calcStatus(invoice.invoiceDate, paid);
+  const liveInfo = calcStatus(invoice.invoiceDate, paid, invoice.amount);
   const handleMarkPaid = async () => {
   try {
     const res = await fetch(
@@ -886,41 +863,43 @@ export default function App() {
   const t = screenTitles[screen];
 
   const handleUploadSubmit = async (data) => {
-  try {
-    const res = await fetch("http://localhost:5000/invoices", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+    try {
+      const res = await fetch("http://localhost:5000/invoices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
 
-    if (!res.ok) {
-      throw new Error("Invoice upload failed");
+      if (!res.ok) {
+        throw new Error("Invoice upload failed");
+      }
+
+      const result = await res.json();
+
+      // ⭐ IMPORTANT: store BACKEND invoice (with id)
+      setInvoice({
+        id: result.data.id,
+        invoiceNo: result.data.invoice_no,
+        invoiceDate: result.data.invoice_date,
+        sellerName: result.data.seller_name,
+        buyerName: result.data.buyer_name,
+        amount: result.data.amount,
+        paid: result.data.paid,
+        buyerGstin: result.data.buyer_gstin,
+        buyerContact: result.data.buyer_contact,
+        udyamId: result.data.udyam_id,
+      });
+
+      setTimeout(() => setScreen("dashboard"), 1200);
+      return true;
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload invoice");
+      return false;
     }
-
-    const result = await res.json();
-
-    // ⭐ IMPORTANT: store BACKEND invoice (with id)
-    setInvoice({
-      id: result.data.id,
-      invoiceNo: result.data.invoice_no,
-      invoiceDate: result.data.invoice_date,
-      sellerName: result.data.seller_name,
-      buyerName: result.data.buyer_name,
-      amount: result.data.amount,
-      paid: result.data.paid,
-      buyerGstin: result.data.buyer_gstin,
-      buyerContact: result.data.buyer_contact,
-      udyamId: result.data.udyam_id,
-    });
-
-    setTimeout(() => setScreen("dashboard"), 1200);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to upload invoice");
-  }
-};
+  };
 
   return (
     // NOTE FOR INTEGRATION: load Google Font via index.html <link> tag

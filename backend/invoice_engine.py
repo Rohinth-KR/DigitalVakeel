@@ -312,7 +312,7 @@ def check_triggers(invoice: Invoice) -> list[dict]:
 #  In production this would be replaced with a real DB (PostgreSQL etc.)
 # ─────────────────────────────────────────────────────────────
 
-DB_FILE = "invoices_db.json"
+DB_FILE = os.path.join(os.path.dirname(__file__), "invoices_db.json")
 
 def _load_db() -> dict:
     """Load all invoices from the JSON file."""

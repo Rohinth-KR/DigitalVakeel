@@ -49,7 +49,7 @@ def handle_preflight():
         resp = make_response()
         resp.headers["Access-Control-Allow-Origin"]  = "http://localhost:3000"
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         return resp, 200
 
 
@@ -112,14 +112,14 @@ def create_invoice():
 
     # Map camelCase → snake_case
     data = {
-        "seller_name": body.get("sellerName"),
-        "buyer_name": body.get("buyerName"),
-        "invoice_no": body.get("invoiceNo"),
-        "invoice_date": body.get("invoiceDate"),
+        "seller_name": body.get("sellerName") or body.get("seller_name"),
+        "buyer_name": body.get("buyerName") or body.get("buyer_name"),
+        "invoice_no": body.get("invoiceNo") or body.get("invoice_no"),
+        "invoice_date": body.get("invoiceDate") or body.get("invoice_date"),
         "amount": body.get("amount"),
-        "udyam_id": body.get("udyamId", ""),
-        "buyer_contact": body.get("buyerContact", ""),
-        "buyer_gstin": body.get("buyerGstin", ""),
+        "udyam_id": body.get("udyamId") or body.get("udyam_id", ""),
+        "buyer_contact": body.get("buyerContact") or body.get("buyer_contact", ""),
+        "buyer_gstin": body.get("buyerGstin") or body.get("buyer_gstin", ""),
     }
 
     # Validate required fields
@@ -204,7 +204,8 @@ def pay_invoice(invoice_id):
     body = request.get_json(silent=True) or {}
 
     # IMPORTANT: invoice_id is the INTERNAL id (e.g. E56B8CF1)
-    invoice = get_invoice(invoice_id)
+    invoice_key = invoice_id.upper()
+    invoice = get_invoice(invoice_key)
 
     if not invoice:
         return error(f"Invoice '{invoice_id}' not found", status=404)
@@ -226,7 +227,7 @@ def pay_invoice(invoice_id):
         return error("Invalid paid_amount", status=400)
 
     # Mark invoice as paid
-    updated = mark_paid(invoice_id, paid_amount)
+    updated = mark_paid(invoice_key, paid_amount)
 
     return success(
         {
