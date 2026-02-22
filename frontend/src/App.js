@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-
+import { extractInvoicePDF } from './api';
 // ─────────────────────────────────────────────
 //  DESIGN TOKENS
 // ─────────────────────────────────────────────
@@ -316,15 +316,38 @@ function UploadScreen({ onSubmit }) {
   const set = (k,v) => setForm(f => ({...f,[k]:v}));
 
   const fillDemo = () => {
+  setForm({
+    sellerName: "Arjun Textiles", buyerName: "Mega-Retail Corp",
+    invoiceNo: "INV-2025-101", invoiceDate: "2025-02-01",
+    amount: "500000", udyamId: "UDYAM-TN-07-0012345",
+    buyerContact: "finance@megaretail.com",
+  });
+  setOcrDone(true);
+};
+
+const handleFileUpload = async (file) => {
+  if (!file) return;
+  
+  setOcrDone(false);  // Show loading state
+  
+  const extracted = await extractInvoicePDF(file);
+  console.log("OCR returned:", extracted);
+
+  if (extracted) {
     setForm({
-      sellerName: "Arjun Textiles", buyerName: "Mega-Retail Corp",
-      invoiceNo: "INV-2025-101", invoiceDate: "2025-02-01",
-      amount: "500000", udyamId: "UDYAM-TN-07-0012345",
-      buyerContact: "finance@megaretail.com",
+      sellerName:   extracted.seller_name || "",
+      buyerName:    extracted.buyer_name || "",
+      invoiceNo:    extracted.invoice_no || "",
+      invoiceDate:  extracted.invoice_date || "",
+      amount:       extracted.amount ? String(extracted.amount) : "",
+      udyamId:      extracted.udyam_id || "",
+      buyerContact: extracted.buyer_contact || "",
     });
     setOcrDone(true);
-  };
-
+  } else {
+    alert("OCR extraction failed. Please enter details manually.");
+  }
+};
   const validate = () => {
     const e = {};
     if (!form.sellerName) e.sellerName = "Required";
@@ -346,47 +369,6 @@ function UploadScreen({ onSubmit }) {
     const saved = await onSubmit(payload);
     if (saved) {
       setStep(3);
-    }
-  };
-
-  const handleFileUpload = async (file) => {
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setOcrLoading(true);
-    try {
-      const res = await fetch("http://localhost:5000/extract-invoice", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error("OCR extraction failed");
-      }
-
-      const result = await res.json();
-      const mapped = result?.data?.mapped || {};
-
-      setForm((prev) => ({
-        ...prev,
-        sellerName: mapped.sellerName || prev.sellerName,
-        buyerName: mapped.buyerName || prev.buyerName,
-        invoiceNo: mapped.invoiceNo || prev.invoiceNo,
-        invoiceDate: mapped.invoiceDate || prev.invoiceDate,
-        amount: mapped.amount ? String(mapped.amount) : prev.amount,
-        udyamId: mapped.udyamId || prev.udyamId,
-        buyerContact: mapped.buyerContact || prev.buyerContact,
-      }));
-
-      setOcrDone(true);
-    } catch (err) {
-      console.error(err);
-      alert("OCR service unavailable. Filled demo data instead.");
-      fillDemo();
-    } finally {
-      setOcrLoading(false);
     }
   };
 
@@ -435,12 +417,13 @@ function UploadScreen({ onSubmit }) {
                 onDrop={e=>{
                   e.preventDefault();
                   setDragging(false);
-                  handleFileUpload(e.dataTransfer.files?.[0]);
+                  const file = e.dataTransfer.files[0];
+                  if (file) handleFileUpload(file);
                 }}
                 onClick={()=>fileRef.current?.click()}
               >
                 <input ref={fileRef} type="file" accept="image/*,.pdf" style={{display:"none"}}
-                  onChange={(e)=>{ handleFileUpload(e.target.files?.[0]); }} />
+                  onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); }} />
                 <div style={{fontSize:36,marginBottom:12}}>🧾</div>
                 <div style={{fontWeight:700,color:T.ink,fontSize:14,marginBottom:4}}>
                   Drop invoice here or click to browse

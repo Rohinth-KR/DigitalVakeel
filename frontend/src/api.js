@@ -100,6 +100,36 @@ export async function getSummary() {
   return apiFetch("/summary");
 }
 
+/**
+ * Extract invoice data from PDF using OCR.
+ * Called when user uploads a PDF file.
+ * 
+ * @param {File} pdfFile - The PDF file object from file input
+ * @returns {Object} extracted invoice fields
+ */
+export async function extractInvoicePDF(pdfFile) {
+  const formData = new FormData();
+  formData.append("file", pdfFile);
+  
+  try {
+    const res = await fetch(`${BASE_URL}/ocr/extract`, {
+      method: "POST",
+      body: formData,  // Don't set Content-Type header - browser does it automatically
+    });
+    
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      throw new Error(json.error || "OCR extraction failed");
+    }
+    
+    return json.data;
+  } catch (err) {
+    console.error("OCR Error:", err);
+    return null;  // Return null on failure, caller can handle gracefully
+  }
+}
+
+
 
 // ─────────────────────────────────────────────────────────────
 //  DUMMY DATA FALLBACK

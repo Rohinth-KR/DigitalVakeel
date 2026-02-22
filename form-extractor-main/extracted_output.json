@@ -1,0 +1,32 @@
+﻿{
+  "status": "ok",
+  "filename": "msme_single_form.pdf",
+  "fields": {
+    "INVOICE_NUMBER": "Invoice No: INV-2024-0187",
+    "INVOICE_DATE": "Invoice Date: 18-09-2024",
+    "DUE_DATE": "Due Date: 18-10-2024",
+    "SELLER_NAME": "Dharani Handlooms Pvt Ltd",
+    "UDYAM_ID": "UDYAM-TN-06-0099123",
+    "GSTIN_SELLER": "33AABCP9123A1ZX",
+    "SELLER_PHONE": "9843012345",
+    "SELLER_EMAIL": "dharani.handlooms@gmail.com",
+    "ENTERPRISE_SIZE": "Small",
+    "BUYER_NAME": "IndiaRetail Hub Pvt Ltd",
+    "BUYER_GSTIN": "07BBBC9988Z1ZX",
+    "BUYER_PHONE": "011-23456789",
+    "BUYER_EMAIL": "indiaretail@gmail.com",
+    "PO_NUMBER": "PO-8812",
+    "DELIVERY_DATE": "25-09-2024",
+    "TRANSPORT_MODE": "Courier",
+    "EWAY_BILL": "EWB45678901",
+    "BANK_ACCOUNT": "SB AIC 998877665544",
+    "IFSC": "IOBA0099123",
+    "PAYMENT_TERMS": "Net 30 Days",
+    "SUBTOTAL": "Sub Total (Taxable Value): Rs. 1,64,300.00",
+    "CGST": "CGST @ 2.5%: Rs. 4,107.50",
+    "SGST": "SGST @ 2.5%: Rs. 4,107.50",
+    "IGST": "IGST @ 0%: Rs. 0.00",
+    "INVOICE_AMOUNT": "TOTAL INVOICE AMOUNT: Rs. 1,72,515.00"
+  },
+  "field_count": 25
+}

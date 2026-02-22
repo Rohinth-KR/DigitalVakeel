@@ -3,7 +3,7 @@
 #  Run this with: python app.py
 #  The React frontend (Person D) talks to this server.
 # ============================================================
-
+import requests
 from flask import Flask, request, jsonify
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
@@ -406,59 +406,80 @@ def summary():
         "total_outstanding": round(total_due, 2),
     })
 
-
 # ─────────────────────────────────────────────────────────────
-#  ROUTE 10 — Extract invoice fields using form-extractor service
-#  POST /extract-invoice
-#  Accepts multipart/form-data with "file"
+#  ROUTE 10 — OCR Extract Invoice from PDF
+#  POST /ocr/extract
+#  Receives PDF, calls Person C's OCR API, returns extracted data
 # ─────────────────────────────────────────────────────────────
 
-@app.route("/extract-invoice", methods=["POST"])
-def extract_invoice_fields():
-    uploaded = request.files.get("file")
-    if not uploaded:
-        return error("Upload a PDF/image in form-data field 'file'")
-
-    payload = uploaded.read()
-    if not payload:
-        return error("Uploaded file is empty")
-
-    boundary = "----DigitalVakeelBoundary"
-    head = (
-        f"--{boundary}\r\n"
-        f"Content-Disposition: form-data; name=\"file\"; filename=\"{uploaded.filename or 'invoice.pdf'}\"\r\n"
-        "Content-Type: application/pdf\r\n\r\n"
-    ).encode("utf-8")
-    tail = f"\r\n--{boundary}--\r\n".encode("utf-8")
-    body = head + payload + tail
-
-    req = Request(
-        OCR_SERVICE_URL,
-        data=body,
-        method="POST",
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-    )
-
+@app.route("/ocr/extract", methods=["POST"])
+def ocr_extract():
+    if "file" not in request.files:
+        return error("No file uploaded", status=400)
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return error("Empty filename", status=400)
+    
+    # Forward PDF to Person C's OCR API
     try:
-        with urlopen(req, timeout=90) as resp:
-            raw = json.loads(resp.read().decode("utf-8"))
-    except HTTPError as exc:
-        return error(f"Extractor service failed with status {exc.code}", status=502)
-    except URLError:
-        return error(
-            "Could not connect to extractor service. Start form-extractor-main/api.py on port 8000.",
-            status=503,
-        )
-    except Exception as exc:
-        return error(f"Extractor error: {exc}", status=500)
+        files = {"file": (file.filename, file.stream, file.content_type)}
+        ocr_response = requests.post("http://localhost:8000/extract", files=files)
+        ocr_data = ocr_response.json()
+        print("DEBUG - OCR raw response:", ocr_data)
+        
+        # Get the fields dict from OCR response
+        fields = ocr_data.get("fields", {})
 
-    fields = raw.get("fields") or {}
-    return success({
-        "filename": raw.get("filename", uploaded.filename),
-        "raw_fields": fields,
-        "mapped": map_extracted_fields(fields),
-    })
+        # Extract and clean values (OCR includes labels, we need just values)
+        def clean_value(text):
+            """Remove label prefixes like 'Invoice No: ' from values"""
+            if not text:
+                return ""
+            # Split by colon and take the last part
+            if ":" in text:
+                return text.split(":", 1)[1].strip()
+            return text.strip()
 
+        # Extract amount number from text like "Rs. 1,72,515.00"
+        def extract_amount(text):
+            if not text:
+                return 0
+            # Remove everything except digits and decimal point
+            import re
+            numbers = re.findall(r'[\d,]+\.?\d*', text)
+            if numbers:
+                return float(numbers[0].replace(',', ''))
+            return 0
+        def convert_date(text):
+            """Convert DD-MM-YYYY to YYYY-MM-DD"""
+            cleaned = clean_value(text)
+            if not cleaned:
+                return ""
+            try:
+                # Parse DD-MM-YYYY
+                from datetime import datetime
+                date_obj = datetime.strptime(cleaned, "%d-%m-%Y")
+                # Return as YYYY-MM-DD
+                return date_obj.strftime("%Y-%m-%d")
+            except:
+                return cleaned  # Return as-is if parsing fails
+        # Map OCR fields to our invoice format
+        mapped = {
+            "seller_name":   clean_value(fields.get("SELLER_NAME", "")),
+            "buyer_name":    clean_value(fields.get("BUYER_NAME", "")),
+            "invoice_no":    clean_value(fields.get("INVOICE_NUMBER", "")),
+            "invoice_date":  convert_date(fields.get("INVOICE_DATE", "")),
+            "amount":        extract_amount(fields.get("INVOICE_AMOUNT", "")),
+            "udyam_id":      clean_value(fields.get("UDYAM_ID", "")),
+            "buyer_gstin":   clean_value(fields.get("BUYER_GSTIN", "")),
+            "buyer_contact": clean_value(fields.get("BUYER_EMAIL", "")),
+        }
+        
+        return success(mapped)
+        
+    except Exception as e:
+        return error(f"OCR extraction failed: {str(e)}", status=500)
 
 # ─────────────────────────────────────────────────────────────
 #  START SERVER
@@ -481,5 +502,5 @@ if __name__ == "__main__":
     print("  POST /invoices/<id>/notices         → log a sent notice")
     print("  GET  /summary                       → dashboard stats")
     print("\n  Press CTRL+C to stop.\n")
-
+    print("  POST /ocr/extract                   → extract invoice from PDF")
     app.run(debug=True, port=5000)
