@@ -310,6 +310,7 @@ function UploadScreen({ onSubmit }) {
   const [step, setStep]     = useState(1); // 1=details, 2=review, 3=done
   const [errors, setErrors] = useState({});
   const [ocrDone, setOcrDone] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const fileRef = useRef();
 
   const set = (k,v) => setForm(f => ({...f,[k]:v}));
@@ -345,6 +346,47 @@ function UploadScreen({ onSubmit }) {
     const saved = await onSubmit(payload);
     if (saved) {
       setStep(3);
+    }
+  };
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setOcrLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/extract-invoice", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("OCR extraction failed");
+      }
+
+      const result = await res.json();
+      const mapped = result?.data?.mapped || {};
+
+      setForm((prev) => ({
+        ...prev,
+        sellerName: mapped.sellerName || prev.sellerName,
+        buyerName: mapped.buyerName || prev.buyerName,
+        invoiceNo: mapped.invoiceNo || prev.invoiceNo,
+        invoiceDate: mapped.invoiceDate || prev.invoiceDate,
+        amount: mapped.amount ? String(mapped.amount) : prev.amount,
+        udyamId: mapped.udyamId || prev.udyamId,
+        buyerContact: mapped.buyerContact || prev.buyerContact,
+      }));
+
+      setOcrDone(true);
+    } catch (err) {
+      console.error(err);
+      alert("OCR service unavailable. Filled demo data instead.");
+      fillDemo();
+    } finally {
+      setOcrLoading(false);
     }
   };
 
@@ -390,11 +432,15 @@ function UploadScreen({ onSubmit }) {
                 style={S.dropZone(dragging)}
                 onDragOver={e=>{e.preventDefault();setDragging(true)}}
                 onDragLeave={()=>setDragging(false)}
-                onDrop={e=>{e.preventDefault();setDragging(false);fillDemo();}}
+                onDrop={e=>{
+                  e.preventDefault();
+                  setDragging(false);
+                  handleFileUpload(e.dataTransfer.files?.[0]);
+                }}
                 onClick={()=>fileRef.current?.click()}
               >
                 <input ref={fileRef} type="file" accept="image/*,.pdf" style={{display:"none"}}
-                  onChange={()=>{ setTimeout(fillDemo, 800); }} />
+                  onChange={(e)=>{ handleFileUpload(e.target.files?.[0]); }} />
                 <div style={{fontSize:36,marginBottom:12}}>🧾</div>
                 <div style={{fontWeight:700,color:T.ink,fontSize:14,marginBottom:4}}>
                   Drop invoice here or click to browse
@@ -404,7 +450,17 @@ function UploadScreen({ onSubmit }) {
                 </div>
               </div>
 
-              {ocrDone && (
+              {ocrLoading && (
+                <div style={{
+                  padding:"10px 14px", background:"rgba(59,130,246,0.08)", borderRadius:8,
+                  border:`1px solid rgba(59,130,246,0.25)`, fontSize:12, color:"#1D4ED8",
+                  display:"flex", alignItems:"center", gap:8, marginBottom:16,
+                }}>
+                  ⏳ <strong>OCR In Progress</strong> — Extracting invoice fields...
+                </div>
+              )}
+
+              {ocrDone && !ocrLoading && (
                 <div style={{
                   padding:"10px 14px", background:"rgba(16,185,129,0.08)", borderRadius:8,
                   border:`1px solid rgba(16,185,129,0.25)`, fontSize:12, color:"#15803D",

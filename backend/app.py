@@ -5,6 +5,10 @@
 # ============================================================
 
 from flask import Flask, request, jsonify
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
+import json
+import os
 from invoice_engine import (
     Invoice, save_invoice, get_invoice,
     get_all_invoices, mark_paid, check_triggers, calculate
@@ -12,6 +16,7 @@ from invoice_engine import (
 from datetime import datetime
 
 app = Flask(__name__)
+OCR_SERVICE_URL = os.environ.get("OCR_SERVICE_URL", "http://localhost:8000/extract")
 
 # ─────────────────────────────────────────────────────────────
 #  CORS  —  Allows React (localhost:3000) to call this server
@@ -64,6 +69,54 @@ def success(data, status=200):
 def error(message, status=400):
     """Standard error response wrapper."""
     return jsonify({"ok": False, "error": message}), status
+
+
+def _clean_value(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _extract_amount(value):
+    cleaned = _clean_value(value)
+    if not cleaned:
+        return None
+    digits = "".join(ch for ch in cleaned if ch.isdigit() or ch in ".,")
+    if not digits:
+        return None
+    try:
+        return float(digits.replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _normalize_date(value):
+    raw = _clean_value(value)
+    if not raw:
+        return ""
+    if ":" in raw:
+        raw = raw.split(":", 1)[1].strip()
+
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return ""
+
+
+def map_extracted_fields(fields):
+    """Map extractor keys to Digital-Vakeel invoice schema."""
+    return {
+        "sellerName": _clean_value(fields.get("SELLER_NAME")),
+        "buyerName": _clean_value(fields.get("BUYER_NAME")),
+        "invoiceNo": _clean_value(fields.get("INVOICE_NUMBER")).replace("Invoice No:", "").strip(),
+        "invoiceDate": _normalize_date(fields.get("INVOICE_DATE")),
+        "amount": _extract_amount(fields.get("INVOICE_AMOUNT")),
+        "udyamId": _clean_value(fields.get("UDYAM_ID")),
+        "buyerGstin": _clean_value(fields.get("BUYER_GSTIN")),
+        "buyerContact": _clean_value(fields.get("BUYER_EMAIL")),
+    }
 
 
 # ─────────────────────────────────────────────────────────────
@@ -351,6 +404,59 @@ def summary():
         "total_principal":   round(total_principal, 2),
         "total_interest":    round(total_interest, 2),
         "total_outstanding": round(total_due, 2),
+    })
+
+
+# ─────────────────────────────────────────────────────────────
+#  ROUTE 10 — Extract invoice fields using form-extractor service
+#  POST /extract-invoice
+#  Accepts multipart/form-data with "file"
+# ─────────────────────────────────────────────────────────────
+
+@app.route("/extract-invoice", methods=["POST"])
+def extract_invoice_fields():
+    uploaded = request.files.get("file")
+    if not uploaded:
+        return error("Upload a PDF/image in form-data field 'file'")
+
+    payload = uploaded.read()
+    if not payload:
+        return error("Uploaded file is empty")
+
+    boundary = "----DigitalVakeelBoundary"
+    head = (
+        f"--{boundary}\r\n"
+        f"Content-Disposition: form-data; name=\"file\"; filename=\"{uploaded.filename or 'invoice.pdf'}\"\r\n"
+        "Content-Type: application/pdf\r\n\r\n"
+    ).encode("utf-8")
+    tail = f"\r\n--{boundary}--\r\n".encode("utf-8")
+    body = head + payload + tail
+
+    req = Request(
+        OCR_SERVICE_URL,
+        data=body,
+        method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+
+    try:
+        with urlopen(req, timeout=90) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+    except HTTPError as exc:
+        return error(f"Extractor service failed with status {exc.code}", status=502)
+    except URLError:
+        return error(
+            "Could not connect to extractor service. Start form-extractor-main/api.py on port 8000.",
+            status=503,
+        )
+    except Exception as exc:
+        return error(f"Extractor error: {exc}", status=500)
+
+    fields = raw.get("fields") or {}
+    return success({
+        "filename": raw.get("filename", uploaded.filename),
+        "raw_fields": fields,
+        "mapped": map_extracted_fields(fields),
     })
 
 
