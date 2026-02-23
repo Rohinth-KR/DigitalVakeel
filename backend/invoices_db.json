@@ -108,5 +108,27 @@
     "interest_accrued": 44055.13,
     "total_due": 216570.13,
     "notices_sent": []
+  },
+  "A11A269F": {
+    "seller_name": "Dharani Handlooms Pvt Ltd",
+    "buyer_name": "IndiaRetail Hub Pvt Ltd",
+    "invoice_no": "INV-2026-0223",
+    "invoice_date": "2026-02-23",
+    "amount": 172515.0,
+    "udyam_id": "UDYAM-TN-06-0099123",
+    "buyer_gstin": "",
+    "buyer_contact": "indiaretail@gmail.com",
+    "id": "A11A269F",
+    "created_at": "2026-02-23T20:31:55.079937",
+    "paid": false,
+    "paid_at": null,
+    "paid_amount": null,
+    "due_date": "2026-04-09",
+    "status": "ACTIVE",
+    "days_overdue": 0,
+    "days_until_due": 45,
+    "interest_accrued": 0.0,
+    "total_due": 172515.0,
+    "notices_sent": []
   }
 }
