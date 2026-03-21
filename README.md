@@ -38,6 +38,18 @@ India's MSME sector faces a massive **₹10.7 Trillion liquidity crisis** due to
 
 ---
 
+## 🤖 Meet Your AI Legal Assistant
+
+Digital-Vakeel goes beyond just tracking invoices—it acts as your personal, highly knowledgeable legal counsel. Powered by **Retrieval-Augmented Generation (RAG)**, our integrated chatbot is designed to provide instant, precise legal guidance specifically tailored to Indian MSMEs. 
+
+### 🌟 Why It's Game-Changing
+- **🧠 Powered by Google Gemini 2.5 Flash**: Yields lightning-fast, high-reasoning legal analysis.
+- **📚 Grounded in Absolute Truth**: By utilizing a **FAISS Vector Database**, the AI constructs answers *strictly* from official sources (the MSMED Act 2006, RBI master directions, and official Samadhaan Portal guidelines). Absolutely no hallucinations.
+- **💬 Conversational & Empathetic**: Ask complex legal questions in plain English. Example: *"What happens if a buyer delays payment past 90 days?"* or *"How is compound interest calculated if I don't have a written contract?"* The AI responds with structured, actionable advice.
+- **✨ Unlocks Legal Access**: What typically costs thousands of rupees in lawyer consultation fees is now available to the smallest business owner, for free, directly inside their dashboard.
+
+---
+
 ## 🏗️ System Architecture
 
 ```
