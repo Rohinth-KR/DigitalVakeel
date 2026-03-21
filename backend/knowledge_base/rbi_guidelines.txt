@@ -1,0 +1,116 @@
+RESERVE BANK OF INDIA (RBI) GUIDELINES ON MSME PAYMENTS
+=========================================================
+
+RBI BANK RATE
+--------------
+The RBI Bank Rate is the rate at which the Reserve Bank of India lends money to commercial banks. This rate is crucial for MSME delayed payment calculations because under Section 16 of the MSMED Act 2006, the interest rate for delayed payments is pegged at THREE TIMES the bank rate.
+
+Current RBI Bank Rate: 6.5% per annum (as of February 2025)
+
+Historical Bank Rates:
+- April 2023 onwards: 6.5%
+- May 2022 to March 2023: 6.5% (raised from 4.25%)
+- During COVID (2020-2022): 4.25%
+
+INTEREST CALCULATION FOR DELAYED MSME PAYMENTS
+------------------------------------------------
+The statutory interest rate under Section 16 of MSMED Act:
+- Applicable rate = 3 × RBI Bank Rate
+- Current rate = 3 × 6.5% = 19.5% per annum
+- This is COMPOUND interest with monthly rests
+
+Daily Rate Calculation:
+- Annual rate: 19.5%
+- Daily rate: 19.5% ÷ 365 = 0.05342% per day
+- Per ₹1,00,000 principal: ₹53.42 interest per day
+
+Monthly Compounding:
+- Monthly rate: 19.5% ÷ 12 = 1.625% per month
+- For ₹1,00,000 delayed 30 days: ₹1,625 interest
+- For ₹5,00,000 delayed 30 days: ₹8,125 interest
+- For ₹10,00,000 delayed 30 days: ₹16,250 interest
+
+Interest Table for ₹5,00,000 Invoice:
+| Days Overdue | Interest Accrued | Total Due      |
+|-------------|-----------------|----------------|
+| 1 day       | ₹267            | ₹5,00,267      |
+| 7 days      | ₹1,870          | ₹5,01,870      |
+| 15 days     | ₹4,007          | ₹5,04,007      |
+| 30 days     | ₹8,014          | ₹5,08,014      |
+| 60 days     | ₹16,027         | ₹5,16,027      |
+| 90 days     | ₹24,041         | ₹5,24,041      |
+| 180 days    | ₹48,082         | ₹5,48,082      |
+| 365 days    | ₹97,500         | ₹5,97,500      |
+
+IMPORTANT: The interest is compound with monthly rests. The above table uses simple daily calculation for illustration. With proper monthly compounding, the actual amounts would be slightly higher.
+
+RBI CIRCULAR ON MSME PAYMENTS
+-------------------------------
+The RBI has issued multiple circulars to banks emphasizing timely payment to MSMEs:
+
+1. Banks must ensure that buyers who are bank customers make timely payments to MSMEs
+2. Banks should create awareness among their corporate borrowers about the MSMED Act provisions
+3. Credit rating agencies should consider timely MSME payment track record in corporate ratings
+
+RBI GUIDELINES FOR TReDS (Trade Receivables Discounting System)
+-----------------------------------------------------------------
+TReDS is an electronic platform for facilitating the financing/discounting of trade receivables of MSMEs through multiple financiers. This was set up by RBI to help MSMEs get faster payment.
+
+How TReDS works:
+1. MSME supplier uploads invoice on TReDS platform
+2. Buyer accepts the invoice on the platform
+3. Multiple financiers (banks/NBFCs) bid to finance the invoice
+4. The lowest bid (best rate) is selected
+5. MSME gets payment upfront (minus small discount)
+6. Buyer pays the financier on the due date
+
+TReDS Platforms in India:
+- Receivables Exchange of India (RXIL)
+- M1xchange (Mynd Solutions)
+- Invoicemart (A.TREDS Limited)
+
+PSU AND GOVERNMENT BUYER PAYMENT RULES
+-----------------------------------------
+RBI and Government of India have additional rules for government entities:
+1. All Central Ministries, Departments, CPSEs must register on TReDS and pay MSMEs through the platform
+2. Government buyers must mandatorily pay within 45 days
+3. Delayed payments by government entities are also subject to the same 3× RBI bank rate interest
+4. Government entities must submit monthly MSME payment reports
+
+BANKING REGULATION FOR MSME LENDING
+--------------------------------------
+RBI has classified MSME lending as Priority Sector Lending (PSL):
+- Banks must allocate a minimum percentage of their lending to MSMEs
+- Sub-targets exist for micro enterprises
+- This ensures credit availability for MSMEs
+- Interest rates on MSME loans are typically competitive
+
+IMPACT ON CREDIT RATING
+-------------------------
+Delayed payments to MSMEs can impact the buyer's credit rating:
+- Credit rating agencies consider MSME payment discipline
+- Companies with pending MSME dues may face rating downgrades
+- Banks may restrict credit to chronic defaulters
+- The MSME-1 disclosure form adds transparency to the buyer's payment record
+
+KEY RBI CIRCULARS RELATED TO MSME PAYMENTS:
+1. RBI/2023-24/XX - Strengthening of MSME Ecosystem
+2. Framework for Revival and Rehabilitation of MSMEs (2016, updated 2020)
+3. Guidelines on Restructuring of MSME Advances (for COVID relief)
+
+WHAT HAPPENS IF RBI CHANGES THE BANK RATE?
+---------------------------------------------
+If the RBI changes the bank rate:
+1. The interest rate for future delayed payments changes automatically
+2. The new rate = 3 × new RBI bank rate
+3. For existing overdue payments, the rate applicable at the time of the overdue period applies
+4. The change is effective from the date of RBI notification
+5. Digital-Vakeel automatically uses the current rate (configurable constant)
+
+PRACTICAL ADVICE FOR MSMEs:
+1. Always mention your Udyam Registration Number on invoices
+2. Keep records of delivery/acceptance dates
+3. Send a formal reminder on Day 40 (before the 45-day deadline)
+4. If payment is not received by Day 46, interest starts automatically by law
+5. Use Digital-Vakeel to track and calculate interest automatically
+6. File at MSME Samadhaan portal if payment is not received within 60-90 days

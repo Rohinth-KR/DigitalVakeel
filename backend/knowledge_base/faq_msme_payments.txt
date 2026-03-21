@@ -1,0 +1,162 @@
+FREQUENTLY ASKED QUESTIONS — MSME DELAYED PAYMENTS
+=====================================================
+
+GENERAL QUESTIONS
+==================
+
+Q: What is the maximum time a buyer can take to pay an MSME supplier?
+A: Under Section 15 of the MSMED Act 2006, the maximum payment period is 45 days from the date of acceptance of goods or services. Even if the contract specifies 60, 90, or 120 days, the legal limit remains 45 days. Any clause in an agreement exceeding 45 days is void to that extent.
+
+Q: What happens if the buyer delays payment beyond 45 days?
+A: If payment is not made within 45 days, the buyer automatically becomes liable to pay compound interest at three times the RBI bank rate (currently 3 × 6.5% = 19.5% per annum) under Section 16 of the MSMED Act 2006. The interest starts accruing from Day 46 automatically — no notice or demand is required to trigger this.
+
+Q: Can I claim compound interest for delayed payment?
+A: Yes, absolutely. Section 16 of the MSMED Act provides for COMPOUND interest with monthly rests at 3 times the bank rate of RBI. The current rate is 19.5% per annum. This is statutory — it applies automatically by operation of law, regardless of what the contract says.
+
+Q: What is the current interest rate for delayed MSME payments?
+A: The current interest rate is 19.5% per annum (compound, with monthly rests). This is calculated as 3 × RBI bank rate (6.5%). The rate changes when RBI changes the bank rate.
+
+Q: Do I need to send a formal notice before claiming interest?
+A: No. The interest under Section 16 starts automatically from Day 46 without any notice. However, it is advisable to send a formal demand notice as it strengthens your case and serves as documentary evidence.
+
+Q: Can the buyer negotiate a lower interest rate?
+A: No. The interest rate under Section 16 is statutory and cannot be reduced or waived by agreement. Any agreement attempting to reduce this rate is void to that extent.
+
+UDYAM REGISTRATION QUESTIONS
+==============================
+
+Q: Do I need Udyam Registration to claim delayed payment interest?
+A: Yes, you need a valid Udyam Registration (or the earlier Udyog Aadhaar/EM-II) to avail the benefits under the MSMED Act. Registration is free and can be done online at https://udyamregistration.gov.in.
+
+Q: How do I get Udyam Registration?
+A: Visit https://udyamregistration.gov.in. You need your Aadhaar number and PAN/GSTIN. The registration is completely free, requires no documents to upload, and the certificate is generated instantly online.
+
+Q: What is the format of Udyam Registration Number?
+A: The format is UDYAM-XX-XX-XXXXXXX where XX represents state code and district code followed by a unique number. For example: UDYAM-TN-07-0012345.
+
+Q: I just registered. Can I claim for past invoices?
+A: The MSMED Act benefits apply to transactions where you were a registered MSME at the time of supply. If you were not registered at the time of the transaction, your claim may be challenged.
+
+LEGAL REMEDIES QUESTIONS
+==========================
+
+Q: What's my right if the buyer delays beyond 90 days?
+A: If the buyer delays payment beyond 90 days (which is 45 days past the overdue date), you have multiple rights:
+1. Claim compound interest at 19.5% per annum for the entire delay period (starting from Day 46)
+2. File a complaint on MSME Samadhaan portal (https://samadhaan.msme.gov.in)
+3. File a reference to the Micro and Small Enterprise Facilitation Council under Section 18
+4. The buyer must disclose the overdue amount in their annual accounts (Form MSME-1), which serves as evidence
+5. Send a formal legal notice demanding payment with interest
+6. The interest accrued by Day 90 on a ₹5,00,000 invoice would be approximately ₹24,041
+
+Q: What's the process to file in MSME Samadhaan?
+A: The step-by-step process is:
+1. Register at https://samadhaan.msme.gov.in with your Udyam Registration Number
+2. Login and click "File Application"
+3. Fill in buyer details (name, address, GSTIN)
+4. Add invoice details (number, date, amount)
+5. Upload supporting documents (invoices, delivery proof, PO)
+6. Calculate and claim interest
+7. Submit — you'll get a case reference number
+8. The Facilitation Council sends notice to buyer within 15-30 days
+9. Conciliation is attempted first, then arbitration if needed
+10. Resolution within 90 days (legally mandated)
+
+Q: Can I take the buyer to civil court instead of Samadhaan?
+A: Yes, but filing through Samadhaan/Facilitation Council has advantages:
+1. Faster resolution (90 days vs years in civil court)
+2. No court fees
+3. 75% deposit requirement deters frivolous buyer appeals
+4. Council has expertise in MSME matters
+5. However, you can also pursue civil remedies simultaneously
+
+Q: What if the buyer is a government department?
+A: Government departments are also covered under the MSMED Act. You can file against Central/State government departments, PSUs, and autonomous bodies. The same 45-day limit and interest provisions apply.
+
+Q: What evidence do I need to prove my claim?
+A: Key evidence includes:
+1. Copy of invoice(s) with date and amount
+2. Delivery challan or proof of service rendered
+3. Purchase order or work order
+4. Any written communication about payment (emails, letters)
+5. Udyam Registration Certificate
+6. Proof of delivery/acceptance (signature, email confirmation)
+7. Bank statements showing non-receipt of payment
+8. Any partial payment records
+
+INTEREST AND AMOUNT QUESTIONS
+===============================
+
+Q: How is the interest calculated day by day?
+A: The daily interest is calculated as:
+- Annual rate = 3 × RBI bank rate = 19.5%
+- Daily rate = 19.5% ÷ 365 = 0.05342%
+- Daily interest = Principal × 0.0005342
+- For ₹5,00,000: Daily interest = ₹267.12
+
+The interest starts from Day 46 (the first day after the 45-day payment window expires).
+
+Q: Is it simple interest or compound interest?
+A: It is COMPOUND interest with monthly rests, as specified in Section 16. This means at the end of each month, the unpaid interest is added to the principal, and the next month's interest is calculated on the higher amount. In practice, for short delay periods (under 30 days), the difference between simple and compound calculation is negligible.
+
+Q: Can the buyer pay only the principal without interest?
+A: Legally, no. The buyer is liable to pay both the principal amount and the statutory interest. However, during conciliation at the Facilitation Council, parties may negotiate a settlement amount. If you accept a lower amount in settlement, that's your choice — but you have the legal right to the full interest.
+
+Q: What if the buyer makes partial payment?
+A: If the buyer makes a partial payment:
+1. The partial amount is first adjusted against the interest accrued
+2. Any remaining amount is adjusted against the principal
+3. Interest continues to accrue on the unpaid principal balance
+4. Digital-Vakeel can track partial payments and recalculate the outstanding amount
+
+Q: Can I claim interest for invoices that are several years old?
+A: Yes, you can claim interest for old invoices. There is no specific limitation period mentioned in the MSMED Act for claiming interest. However, the general limitation period of 3 years under the Limitation Act may apply for filing a case. It's advisable to file sooner rather than later.
+
+DIGITAL-VAKEEL SPECIFIC QUESTIONS
+====================================
+
+Q: How does Digital-Vakeel calculate the interest?
+A: Digital-Vakeel uses the formula from Section 16 of the MSMED Act:
+- Interest = Principal × (3 × RBI Bank Rate / 365) × Days Overdue
+- The daily rate is 0.05342% (19.5% per annum ÷ 365)
+- Interest starts accruing from Day 46 (the first day after the 45-day window)
+- The system recalculates interest in real-time every time you view the dashboard
+
+Q: What are the automated notifications in Digital-Vakeel?
+A: Digital-Vakeel sends three automated notifications:
+1. Day 46 — WhatsApp reminder (soft reminder that payment is overdue)
+2. Day 60 — Formal legal notice email (citing MSMED Act sections)
+3. Day 67 — Final escalation warning (threat of Samadhaan filing)
+
+Q: What happens when I mark an invoice as "Paid"?
+A: When you mark an invoice as paid:
+1. Interest stops accruing immediately
+2. The status changes to "PAID"
+3. All automated notifications are stopped
+4. The total amount (principal + interest) is frozen at the payment date
+5. The invoice record is preserved for documentation
+
+Q: Can Digital-Vakeel file on Samadhaan for me?
+A: Currently, Digital-Vakeel tracks invoices and calculates interest automatically. The Samadhaan portal filing is planned for a future update. For now, you can use the data from Digital-Vakeel's dashboard (exact amounts, dates, interest breakdown) to file manually on https://samadhaan.msme.gov.in.
+
+BUYER-SIDE QUESTIONS
+=====================
+
+Q: I'm a buyer. What are my obligations?
+A: As a buyer, you are legally required to:
+1. Pay MSME suppliers within 45 days of acceptance (Section 15)
+2. Pay compound interest at 3× RBI rate if payment is delayed (Section 16)
+3. Disclose overdue MSME dues in your annual accounts via Form MSME-1 (Section 21)
+4. Note that interest paid to MSMEs is NOT tax-deductible (Section 22)
+
+Q: What risks do I face as a buyer if I delay MSME payments?
+A: Significant risks include:
+1. Statutory interest liability at 19.5% per annum (compound)
+2. Legal proceedings at Facilitation Council (resolution in 90 days)
+3. Mandatory disclosure in annual accounts (Form MSME-1)
+4. No tax deduction on interest paid (Section 22)
+5. Potential credit rating impact
+6. Reputation damage from Samadhaan portal complaints
+
+Q: Can I challenge a Facilitation Council order?
+A: Yes, but under Section 19 of the MSMED Act, you must deposit 75% of the awarded amount with the court before your challenge application will be entertained. This is designed to prevent frivolous appeals and protect MSMEs.

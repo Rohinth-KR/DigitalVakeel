@@ -19,6 +19,32 @@ app = Flask(__name__)
 OCR_SERVICE_URL = os.environ.get("OCR_SERVICE_URL", "http://localhost:8000/extract")
 
 # ─────────────────────────────────────────────────────────────
+#  RAG CHATBOT ENGINE  —  Legal Assistant powered by Gemini AI
+# ─────────────────────────────────────────────────────────────
+rag_engine = None
+
+def init_rag():
+    """Initialize the RAG engine. Called at startup."""
+    global rag_engine
+    try:
+        from rag_engine import RAGEngine
+        rag_engine = RAGEngine()
+        if rag_engine.is_ready():
+            print("✅ RAG Legal Assistant is READY!")
+        else:
+            print("⚠️  RAG engine loaded but vector store not found.")
+            print("   Run: python build_vectorstore.py")
+    except ValueError as e:
+        print(f"⚠️  RAG engine not initialized: {e}")
+        print("   Chat endpoint will return an error until API key is set.")
+    except Exception as e:
+        print(f"⚠️  RAG engine failed to load: {e}")
+        print("   Chat endpoint will be unavailable.")
+
+# Initialize RAG at module load (works with Flask debug reloader)
+init_rag()
+
+# ─────────────────────────────────────────────────────────────
 #  CORS  —  Allows React (localhost:3000) to call this server
 #  Without this, the browser will block every request.
 #
@@ -482,10 +508,67 @@ def ocr_extract():
         return error(f"OCR extraction failed: {str(e)}", status=500)
 
 # ─────────────────────────────────────────────────────────────
+#  ROUTE 11 — RAG Legal Assistant Chat
+#  POST /chat
+#  The React chat widget sends questions here.
+#  Returns AI-generated answers grounded in legal documents.
+#
+#  Request body:
+#  { "question": "What is Section 16?" }
+#
+#  Response:
+#  {
+#    "ok": true,
+#    "data": {
+#      "answer": "Section 16 of the MSMED Act...",
+#      "sources": [{"document": "msmed_act.txt", "snippet": "..."}],
+#      "success": true
+#    }
+#  }
+# ─────────────────────────────────────────────────────────────
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    body = request.get_json()
+    if not body or not body.get("question"):
+        return error("Please provide a 'question' field", status=400)
+
+    question = body["question"].strip()
+    if len(question) < 3:
+        return error("Question is too short", status=400)
+    if len(question) > 1000:
+        return error("Question is too long (max 1000 chars)", status=400)
+
+    if not rag_engine or not rag_engine.is_ready():
+        return error(
+            "Legal assistant is not available. "
+            "Please set GEMINI_API_KEY and run build_vectorstore.py first.",
+            status=503,
+        )
+
+    print(f"💬 Chat question: {question}")
+    result = rag_engine.ask(question)
+    return success(result)
+
+
+# ─────────────────────────────────────────────────────────────
+#  ROUTE 12 — Chat Suggested Questions
+#  GET /chat/suggestions
+#  Returns a list of suggested questions for the chat widget.
+# ─────────────────────────────────────────────────────────────
+
+@app.route("/chat/suggestions", methods=["GET"])
+def chat_suggestions():
+    from rag_engine import SUGGESTED_QUESTIONS
+    return success({"suggestions": SUGGESTED_QUESTIONS})
+
+
+# ─────────────────────────────────────────────────────────────
 #  START SERVER
 # ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+
     print("\n" + "=" * 50)
     print("  Digital-Vakeel API Server")
     print("  Running at: http://localhost:5000")
@@ -501,6 +584,8 @@ if __name__ == "__main__":
     print("  GET  /triggers/today                → all pending triggers")
     print("  POST /invoices/<id>/notices         → log a sent notice")
     print("  GET  /summary                       → dashboard stats")
-    print("\n  Press CTRL+C to stop.\n")
     print("  POST /ocr/extract                   → extract invoice from PDF")
+    print("  POST /chat                          → RAG legal assistant")
+    print("  GET  /chat/suggestions              → suggested questions")
+    print("\n  Press CTRL+C to stop.\n")
     app.run(debug=True, port=5000)

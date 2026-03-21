@@ -345,8 +345,8 @@ function UploadScreen({ onSubmit }) {
     }
   };
 
-  const Field = ({ label, k, type="text", placeholder="" }) => (
-    <div style={{ marginBottom:16 }}>
+  const renderField = ({ label, k, type="text", placeholder="" }) => (
+    <div style={{ marginBottom:16 }} key={k}>
       <label style={S.label}>{label}</label>
       <input
         type={type} placeholder={placeholder}
@@ -444,17 +444,17 @@ function UploadScreen({ onSubmit }) {
             <div style={S.card()}>
               <div style={S.cardTitle}>📝 Invoice Details</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
-                <Field label="SELLER NAME" k="sellerName" placeholder="e.g. Arjun Textiles"/>
-                <Field label="BUYER NAME" k="buyerName" placeholder="e.g. Mega-Retail Corp"/>
+                {renderField({label: "SELLER NAME", k: "sellerName", placeholder: "e.g. Arjun Textiles"})}
+                {renderField({label: "BUYER NAME", k: "buyerName", placeholder: "e.g. Mega-Retail Corp"})}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
-                <Field label="INVOICE NUMBER" k="invoiceNo" placeholder="INV-2025-101"/>
-                <Field label="INVOICE DATE" k="invoiceDate" type="date"/>
+                {renderField({label: "INVOICE NUMBER", k: "invoiceNo", placeholder: "INV-2025-101"})}
+                {renderField({label: "INVOICE DATE", k: "invoiceDate", type: "date"})}
               </div>
-              <Field label="INVOICE AMOUNT (₹)" k="amount" placeholder="500000"/>
+              {renderField({label: "INVOICE AMOUNT (₹)", k: "amount", placeholder: "500000"})}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
-                <Field label="UDYAM ID (SELLER)" k="udyamId" placeholder="UDYAM-TN-07-..."/>
-                <Field label="BUYER CONTACT EMAIL" k="buyerContact" type="email"/>
+                {renderField({label: "UDYAM ID (SELLER)", k: "udyamId", placeholder: "UDYAM-TN-07-..."})}
+                {renderField({label: "BUYER CONTACT EMAIL", k: "buyerContact", type: "email"})}
               </div>
 
               <div style={{display:"flex",gap:10,marginTop:8}}>
@@ -821,6 +821,360 @@ function TimelineScreen({ invoice }) {
 }
 
 // ─────────────────────────────────────────────
+//  CHAT WIDGET — RAG Legal Assistant
+// ─────────────────────────────────────────────
+
+const CHAT_SUGGESTIONS = [
+  "What's my right if buyer delays beyond 90 days?",
+  "Can I claim compound interest?",
+  "What's the process to file in MSME Samadhaan?",
+  "What is Section 16 of MSMED Act?",
+  "Do I need Udyam Registration?",
+  "How is the interest rate calculated?",
+];
+
+function ChatWidget() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => { scrollToBottom(); }, [messages, loading]);
+  useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+
+  const sendMessage = async (question) => {
+    if (!question.trim()) return;
+
+    const userMsg = { role: "user", text: question.trim(), time: new Date() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+    setShowSuggestions(false);
+
+    try {
+      const res = await fetch("http://localhost:5000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question.trim() }),
+      });
+      const json = await res.json();
+
+      if (json.ok && json.data) {
+        const botMsg = {
+          role: "bot",
+          text: json.data.answer || "I couldn't find an answer.",
+          sources: json.data.sources || [],
+          time: new Date(),
+        };
+        setMessages(prev => [...prev, botMsg]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: "bot",
+          text: json.error || "Sorry, something went wrong. Please try again.",
+          sources: [],
+          time: new Date(),
+        }]);
+      }
+    } catch (err) {
+      console.error("Chat error:", err);
+      setMessages(prev => [...prev, {
+        role: "bot",
+        text: "Could not connect to the server. Make sure the Flask backend is running with GEMINI_API_KEY set.",
+        sources: [],
+        time: new Date(),
+      }]);
+    }
+    setLoading(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
+
+  // Simple markdown-like formatting for bold text
+  const formatText = (text) => {
+    if (!text) return "";
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  };
+
+  const chatStyles = {
+    // Floating bubble button
+    bubble: {
+      position: "fixed", bottom: 24, right: 24, width: 58, height: 58,
+      borderRadius: "50%", background: `linear-gradient(135deg, ${T.brand}, ${T.brandDim})`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      cursor: "pointer", boxShadow: "0 4px 20px rgba(0,201,184,0.4)",
+      border: "none", zIndex: 1000, transition: "all 0.3s ease",
+      fontSize: 26, color: T.white,
+    },
+    // Chat panel
+    panel: {
+      position: "fixed", bottom: 96, right: 24, width: 400, height: 550,
+      background: T.white, borderRadius: 18, zIndex: 1000,
+      boxShadow: "0 12px 48px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)",
+      display: "flex", flexDirection: "column", overflow: "hidden",
+      animation: "slideUp 0.3s ease",
+    },
+    // Header
+    header: {
+      padding: "18px 20px", background: `linear-gradient(135deg, ${T.sidebar}, #162B4D)`,
+      display: "flex", alignItems: "center", gap: 12, flexShrink: 0,
+    },
+    headerIcon: {
+      width: 38, height: 38, borderRadius: "50%",
+      background: `linear-gradient(135deg, ${T.brand}, ${T.brandDim})`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 18, flexShrink: 0,
+    },
+    headerTitle: { fontWeight: 700, fontSize: 15, color: T.white, letterSpacing: "-0.2px" },
+    headerSub: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 1 },
+    closeBtn: {
+      marginLeft: "auto", background: "rgba(255,255,255,0.1)", border: "none",
+      color: "rgba(255,255,255,0.6)", width: 28, height: 28, borderRadius: "50%",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      cursor: "pointer", fontSize: 14, transition: "all 0.15s",
+    },
+    // Messages area
+    messagesArea: {
+      flex: 1, overflowY: "auto", padding: "16px 16px 8px", background: "#F8FAFC",
+    },
+    // Message bubbles
+    userBubble: {
+      maxWidth: "82%", padding: "10px 14px", borderRadius: "14px 14px 4px 14px",
+      background: `linear-gradient(135deg, ${T.brand}, ${T.brandDim})`,
+      color: T.white, fontSize: 13, lineHeight: 1.5, marginBottom: 12,
+      marginLeft: "auto", wordBreak: "break-word",
+    },
+    botBubble: {
+      maxWidth: "88%", padding: "12px 14px", borderRadius: "14px 14px 14px 4px",
+      background: T.white, color: T.ink, fontSize: 13, lineHeight: 1.6,
+      marginBottom: 12, border: `1px solid ${T.border}`,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)", wordBreak: "break-word",
+    },
+    // Typing indicator
+    typing: {
+      display: "flex", gap: 4, padding: "10px 14px", maxWidth: 80,
+      borderRadius: "14px 14px 14px 4px", background: T.white,
+      border: `1px solid ${T.border}`, marginBottom: 12,
+    },
+    typingDot: (delay) => ({
+      width: 7, height: 7, borderRadius: "50%", background: T.muted,
+      animation: `pulse 1.2s ease-in-out ${delay}s infinite`,
+    }),
+    // Sources
+    sourceTag: {
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "3px 8px", background: "rgba(0,201,184,0.08)",
+      borderRadius: 6, fontSize: 10, color: T.brandDim, fontWeight: 600,
+      border: `1px solid rgba(0,201,184,0.15)`, marginRight: 4, marginTop: 6,
+    },
+    // Suggestions
+    suggestion: {
+      padding: "8px 12px", background: T.white, borderRadius: 10,
+      border: `1px solid ${T.border}`, fontSize: 12, color: T.ink,
+      cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+      lineHeight: 1.4,
+    },
+    // Input area
+    inputArea: {
+      padding: "12px 16px", borderTop: `1px solid ${T.border}`,
+      background: T.white, display: "flex", gap: 8, alignItems: "center", flexShrink: 0,
+    },
+    chatInput: {
+      flex: 1, padding: "10px 14px", borderRadius: 10,
+      border: `1px solid ${T.border}`, fontSize: 13, outline: "none",
+      color: T.ink, background: "#F8FAFC", transition: "border 0.15s",
+    },
+    sendBtn: {
+      width: 38, height: 38, borderRadius: "50%", border: "none",
+      background: `linear-gradient(135deg, ${T.brand}, ${T.brandDim})`,
+      color: T.white, cursor: "pointer", display: "flex",
+      alignItems: "center", justifyContent: "center", fontSize: 16,
+      flexShrink: 0, transition: "all 0.15s",
+      boxShadow: "0 2px 8px rgba(0,201,184,0.3)",
+    },
+  };
+
+  return (
+    <>
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pulse {
+          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+          40% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes bubblePop {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
+
+      {/* Chat Panel */}
+      {open && (
+        <div style={chatStyles.panel}>
+          {/* Header */}
+          <div style={chatStyles.header}>
+            <div style={chatStyles.headerIcon}>⚖️</div>
+            <div>
+              <div style={chatStyles.headerTitle}>Digital-Vakeel AI</div>
+              <div style={chatStyles.headerSub}>Legal Assistant · Powered by Gemini</div>
+            </div>
+            <button
+              style={chatStyles.closeBtn}
+              onClick={() => setOpen(false)}
+              onMouseOver={e => e.target.style.background = "rgba(255,255,255,0.2)"}
+              onMouseOut={e => e.target.style.background = "rgba(255,255,255,0.1)"}
+            >✕</button>
+          </div>
+
+          {/* Messages */}
+          <div style={chatStyles.messagesArea}>
+            {/* Welcome message */}
+            {messages.length === 0 && !loading && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>⚖️</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: T.ink, marginBottom: 6 }}>
+                  Hi! I'm your Legal Assistant
+                </div>
+                <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6, marginBottom: 20 }}>
+                  Ask me anything about MSME payment rights,<br/>
+                  interest calculations, or legal remedies.
+                </div>
+
+                {showSuggestions && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: T.muted, letterSpacing: "0.5px",
+                                  textTransform: "uppercase", marginBottom: 4 }}>
+                      Suggested Questions
+                    </div>
+                    {CHAT_SUGGESTIONS.map((q, i) => (
+                      <div
+                        key={i}
+                        style={chatStyles.suggestion}
+                        onClick={() => sendMessage(q)}
+                        onMouseOver={e => {
+                          e.target.style.borderColor = T.brand;
+                          e.target.style.background = "rgba(0,201,184,0.04)";
+                        }}
+                        onMouseOut={e => {
+                          e.target.style.borderColor = T.border;
+                          e.target.style.background = T.white;
+                        }}
+                      >
+                        💬 {q}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Message list */}
+            {messages.map((msg, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column",
+                                    alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                {msg.role === "user" ? (
+                  <div style={chatStyles.userBubble}>{msg.text}</div>
+                ) : (
+                  <div style={chatStyles.botBubble}>
+                    <div style={{ whiteSpace: "pre-wrap" }}>{formatText(msg.text)}</div>
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div style={{ marginTop: 8, borderTop: `1px solid ${T.border}`, paddingTop: 6 }}>
+                        <div style={{ fontSize: 10, color: T.muted, marginBottom: 4 }}>Sources:</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {msg.sources.map((s, j) => (
+                            <span key={j} style={chatStyles.sourceTag}>
+                              📄 {s.document.replace('.txt', '')}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {loading && (
+              <div style={chatStyles.typing}>
+                <div style={chatStyles.typingDot(0)} />
+                <div style={chatStyles.typingDot(0.15)} />
+                <div style={chatStyles.typingDot(0.3)} />
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div style={chatStyles.inputArea}>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Ask about MSME payment rights..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              style={{
+                ...chatStyles.chatInput,
+                opacity: loading ? 0.6 : 1,
+              }}
+              onFocus={e => e.target.style.borderColor = T.brand}
+              onBlur={e => e.target.style.borderColor = T.border}
+            />
+            <button
+              style={{
+                ...chatStyles.sendBtn,
+                opacity: (!input.trim() || loading) ? 0.5 : 1,
+                cursor: (!input.trim() || loading) ? "not-allowed" : "pointer",
+              }}
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || loading}
+            >
+              ➤
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bubble */}
+      <button
+        style={chatStyles.bubble}
+        onClick={() => setOpen(!open)}
+        onMouseOver={e => e.target.style.transform = "scale(1.1)"}
+        onMouseOut={e => e.target.style.transform = "scale(1)"}
+        title="Chat with Legal AI Assistant"
+      >
+        {open ? "✕" : "⚖️"}
+      </button>
+    </>
+  );
+}
+
+
+// ─────────────────────────────────────────────
 //  ROOT APP
 // ─────────────────────────────────────────────
 export default function App() {
@@ -891,6 +1245,9 @@ export default function App() {
         {screen === "dashboard" && <DashboardScreen invoice={invoice}/>}
         {screen === "timeline"  && <TimelineScreen  invoice={invoice}/>}
       </div>
+
+      {/* RAG Legal Assistant Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }
