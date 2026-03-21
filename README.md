@@ -28,10 +28,11 @@ India's MSME sector faces a massive **₹10.7 Trillion liquidity crisis** due to
 - **📅 Timeline Visualization** — Day-by-day legal case progression from Day 0 → Day 68
 - **💳 Payment Tracking** — Mark invoices as paid to freeze interest and stop notices
 - **📬 Notification System** — Automated WhatsApp/Email notices on Day 46, 60, and 67 (coming soon)
+- **🤖 RAG Legal Assistant Chatbot** — Interactive AI Q&A trained on MSMED laws, RBI guidelines, and Samadhaan portal procedures
 
 ### 🔐 Technical Highlights
-- **Local-First AI** — Runs entirely on-premise using Ollama (Llama 3 / DeepSeek) — no data leaves your infrastructure
-- **Zero API Costs** — Open-source stack with EasyOCR/PaddleOCR for document processing
+- **AI-Powered Legal Assistant** — RAG chatbot built with Google Gemini 2.5 and FAISS vector search
+- **Zero API Costs** — Open-source stack with DocTR for document processing
 - **Multi-language Support** — Tamil, Hindi, English invoice recognition
 - **Legal Compliance** — Built on MSMED Act 2006 Sections 15, 16, 18 statutory framework
 
@@ -69,12 +70,12 @@ India's MSME sector faces a massive **₹10.7 Trillion liquidity crisis** due to
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| **Frontend** | React 18, Outfit Font | User interface, invoice upload, dashboard |
+| **Frontend** | React 18, Outfit Font | User interface, invoice upload, dashboard, AI chat widget |
 | **Backend API** | Flask 3.0, Python 3.8+ | RESTful API, business logic orchestration |
 | **Core Logic** | Python dataclasses, datetime | Invoice tracking, interest calculation, status engine |
-| **OCR Engine** | DocTR, EasyOCR, PyMuPDF | PDF text extraction, field recognition |
+| **OCR Engine** | DocTR, PyMuPDF | PDF text extraction, field recognition |
 | **Database** | JSON file storage | Invoice persistence (demo/hackathon) |
-| **AI Models** | Ollama (Llama 3, optional) | Future: Legal notice generation |
+| **AI Models** | Google Gemini 2.5, FAISS, LangChain | RAG legal assistant providing contextual Q&A |
 
 ---
 
@@ -109,13 +110,21 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # 5. Install dependencies
-pip install flask flask-cors requests
+pip install -r requirements.txt
 
-# 6. Test the invoice engine
+# 6. Build the FAISS Vector Store for the RAG Legal Chatbot
+# Windows:
+set GEMINI_API_KEY=your-api-key-here
+python build_vectorstore.py
+# macOS/Linux:
+export GEMINI_API_KEY=your-api-key-here
+python build_vectorstore.py
+
+# 7. Test the invoice engine
 python invoice_engine.py
 # Should output: "All tests passed! Engine is ready."
 
-# 7. Start Flask API server
+# 8. Start Flask API server
 python app.py
 # Server starts at: http://localhost:5000
 ```
@@ -262,6 +271,8 @@ DigitalVakeel/
 | **POST** | `/invoices/<id>/notices` | Log sent notification |
 | **GET** | `/summary` | Dashboard summary stats |
 | **POST** | `/ocr/extract` | Extract invoice from PDF |
+| **POST** | `/chat` | RAG legal assistant |
+| **GET** | `/chat/suggestions` | Suggested questions for chat |
 
 ### Example: Create Invoice
 
@@ -362,6 +373,7 @@ PAID (anytime)                ← Interest freezes
 
 ### Phase 1: MVP ✅ (Current)
 - [x] Invoice upload with OCR
+- [x] RAG Legal Assistant Chatbot
 - [x] Interest calculation engine
 - [x] Status tracking system
 - [x] Dashboard visualization
