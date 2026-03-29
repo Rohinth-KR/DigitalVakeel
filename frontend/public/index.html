@@ -25,7 +25,95 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>Digital-Vakeel | Sovereign Intelligence</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        vertical-align: middle;
+      }
+      .glass-panel {
+        background: rgba(17, 38, 67, 0.4);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+      }
+      .glow-accent {
+        box-shadow: 0 0 20px rgba(88, 244, 225, 0.15);
+      }
+      .auth-input:focus {
+        box-shadow: 0 0 12px rgba(88, 244, 225, 0.3);
+      }
+    </style>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#58f4e1",
+              "on-secondary-container": "#b5d2ff",
+              "on-secondary-fixed": "#14355a",
+              "tertiary-fixed-dim": "#68ebe1",
+              "on-primary-fixed": "#00443d",
+              "on-surface-variant": "#9eacc6",
+              "surface-container": "#071a32",
+              "background": "#020e22",
+              "on-primary-container": "#003a34",
+              "surface-container-high": "#0c203a",
+              "tertiary-container": "#77faef",
+              "surface-dim": "#020e22",
+              "inverse-primary": "#006b62",
+              "on-background": "#dae6ff",
+              "tertiary-fixed": "#77faef",
+              "primary-fixed": "#58f4e1",
+              "surface-container-highest": "#112643",
+              "secondary-fixed": "#b7d3ff",
+              "error-container": "#9f0519",
+              "surface-tint": "#58f4e1",
+              "primary-fixed-dim": "#44e5d3",
+              "surface": "#020e22",
+              "tertiary": "#c4fff8",
+              "surface-variant": "#112643",
+              "inverse-surface": "#f9f9ff",
+              "on-secondary": "#28476d",
+              "surface-container-lowest": "#000000",
+              "on-tertiary-fixed-variant": "#006963",
+              "primary-container": "#00c9b8",
+              "on-tertiary-fixed": "#004a45",
+              "on-secondary-fixed-variant": "#345278",
+              "on-primary-fixed-variant": "#00635a",
+              "surface-bright": "#162c4b",
+              "inverse-on-surface": "#48566c",
+              "on-error": "#490006",
+              "error": "#ff716c",
+              "secondary-container": "#2a486e",
+              "outline": "#69768e",
+              "error-dim": "#d7383b",
+              "on-tertiary": "#006761",
+              "on-tertiary-container": "#005e58",
+              "secondary-dim": "#a5c3ef",
+              "secondary-fixed-dim": "#a8c6f2",
+              "secondary": "#b3d1fe",
+              "on-surface": "#dae6ff",
+              "tertiary-dim": "#5ee3d8",
+              "on-error-container": "#ffa8a3",
+              "surface-container-low": "#031329",
+              "outline-variant": "#3b485f",
+              "on-primary": "#005950",
+              "primary-dim": "#44e5d3"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Plus Jakarta Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

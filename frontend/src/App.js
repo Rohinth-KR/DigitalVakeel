@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { extractInvoicePDF } from './api';
+import {
+  extractInvoicePDF, createInvoice, getAllInvoices, markPaid,
+  login, signup, logout, getToken, getStoredUser,
+  sendChatMessage, getChatHistory, clearChatHistory,
+  sendNotice, getNotices, exportCasePDF,
+} from './api';
 
 // ─────────────────────────────────────────────
 //  DESIGN TOKENS
@@ -24,6 +29,7 @@ const T = {
 // ─────────────────────────────────────────────
 //  DUMMY DATA
 // ─────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
 const DUMMY_INVOICE = {
   sellerName:    "Arjun Textiles",
   buyerName:     "Mega-Retail Corp",
@@ -72,6 +78,7 @@ function buildTimeline(invoiceDate) {
   ];
 }
 
+// eslint-disable-next-line no-unused-vars
 const NOTIFICATIONS = [
   { day: 46, type: "WhatsApp", icon: "💬", color: "#25D366", label: "WhatsApp Sent",   to: "Mega-Retail Finance Manager", template: 1 },
   { day: 60, type: "Email",    icon: "📧", color: T.red,     label: "Legal Email Sent",to: "Mega-Retail Legal Dept",      template: 2 },
@@ -93,7 +100,7 @@ const S = {
   sideGlow: {
     position:"absolute", top:-60, left:-60, width:200, height:200, borderRadius:"50%",
     background:"radial-gradient(circle, rgba(0,201,184,0.12) 0%, transparent 70%)",
-    pointerEvents:"none",
+    pointerEvents:"none", animation:"rotateglow 20s linear infinite",
   },
   sideLogoWrap: {
     padding:"28px 24px 20px", borderBottom:`1px solid rgba(255,255,255,0.06)`,
@@ -237,16 +244,294 @@ const S = {
 // ─────────────────────────────────────────────
 //  COMPONENTS
 // ─────────────────────────────────────────────
+//  LEGAL MODALS
+// ─────────────────────────────────────────────
 
-function Sidebar({ screen, setScreen }) {
+const MSMED_SECTIONS = [
+  {
+    id:"s15", icon:"⏱️", color:"#F59E0B",
+    title:"Section 15 — Payment Obligation",
+    badge:"45-Day Rule",
+    text:`Every buyer who buys goods or avails services from a micro or small enterprise shall make payment within 45 days from the day of acceptance of the goods/services. If there is no written agreement specifying a payment period, the buyer must pay within 15 days of delivery. Any agreement for payment beyond 45 days is void with respect to the MSME seller's rights.`,
+    highlight:"Key: 45 days is the MAXIMUM. No contract can extend this for an MSME seller.",
+  },
+  {
+    id:"s16", icon:"📈", color:"#EF4444",
+    title:"Section 16 — Compound Interest on Delay",
+    badge:"19.5% p.a.",
+    text:`Where any buyer fails to make payment to a micro or small enterprise within the period specified under Section 15, the buyer shall, notwithstanding anything contained in any agreement, be liable to pay compound interest with monthly rests at three times the bank rate notified by the Reserve Bank of India. This interest accrues from the appointed day (Day 46 from delivery).`,
+    highlight:"Current RBI rate: 6.5% × 3 = 19.5% per annum compounded monthly.",
+  },
+  {
+    id:"s17", icon:"⚖️", color:"#7C3AED",
+    title:"Section 17 — Right to Recover",
+    badge:"Recovery Right",
+    text:`For the purpose of any suit or application before any court for recovery of any amount due under this Act, the court or authority shall not entertain any suit or application unless the buyer furnishes proof of deposit of seventy-five percent of the amount due, including interest thereon. This is a powerful protection — the buyer must pay 75% upfront even before contesting.`,
+    highlight:"Key: Buyer must deposit 75% of dues before any legal challenge is entertained.",
+  },
+  {
+    id:"s18", icon:"🏛️", color:"#0EA5E9",
+    title:"Section 18 — MSME Facilitation Council",
+    badge:"File Complaint",
+    text:`Any party to a dispute regarding any amount due under this Act may make a reference to the Micro and Small Enterprises Facilitation Council. On receiving a reference, the Council shall conduct conciliation and, if conciliation fails, take up the dispute for arbitration as if it were the arbitration tribunal under the Arbitration and Conciliation Act, 1996.`,
+    highlight:"Filing on Samadhaan portal initiates this Section 18 process automatically.",
+  },
+  {
+    id:"s19", icon:"🔒", color:"#10B981",
+    title:"Section 19 — Application for Setting Aside Decree",
+    badge:"Court Defence",
+    text:`No application for setting aside any decree or award passed by the Facilitation Council shall be entertained by any court unless the appellant has deposited seventy-five per cent of the amount in terms of the decree or award. This further strengthens the MSME seller's position during appeals.`,
+    highlight:"Double protection: 75% deposit required at both filing AND appeal stage.",
+  },
+];
+
+function MsmedActModal({ onClose }) {
+  const [open, setOpen] = useState(null);
+  return (
+    <div style={{
+      position:"fixed", inset:0, zIndex:1000,
+      background:"rgba(0,0,0,0.6)", backdropFilter:"blur(4px)",
+      display:"flex", alignItems:"center", justifyContent:"flex-end",
+      animation:"fadeIn 0.2s ease",
+    }} onClick={onClose}>
+      <div style={{
+        width:520, height:"100vh", background:T.white,
+        overflowY:"auto", boxShadow:"-8px 0 40px rgba(0,0,0,0.2)",
+        animation:"slideInRight 0.25s ease",
+      }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{
+          background:`linear-gradient(135deg,#0C1A2E,#1A2744)`,
+          padding:"28px 28px 20px", position:"sticky", top:0, zIndex:1,
+        }}>
+          <button onClick={onClose} style={{
+            position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.08)",
+            border:"none",color:"rgba(255,255,255,0.6)",width:32,height:32,
+            borderRadius:"50%",cursor:"pointer",fontSize:18,display:"flex",
+            alignItems:"center",justifyContent:"center",
+          }}>×</button>
+          <div style={{fontSize:11,color:T.brand,fontWeight:700,letterSpacing:"1px",marginBottom:6}}>LEGAL REFERENCE</div>
+          <div style={{fontSize:22,fontWeight:800,color:T.white,marginBottom:4}}>📋 MSMED Act 2006</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.5}}>
+            Micro, Small & Medium Enterprises Development Act, 2006<br/>
+            Key sections relevant to delayed payment enforcement.
+          </div>
+        </div>
+        {/* Sections */}
+        <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:10}}>
+          {MSMED_SECTIONS.map(s => (
+            <div key={s.id} style={{
+              border:`1px solid ${open===s.id ? s.color+"60" : T.border}`,
+              borderRadius:10, overflow:"hidden",
+              background: open===s.id ? s.color+"04" : T.white,
+              transition:"all 0.2s",
+            }}>
+              <div
+                onClick={() => setOpen(open===s.id ? null : s.id)}
+                style={{
+                  display:"flex",alignItems:"center",gap:12,
+                  padding:"14px 16px",cursor:"pointer",
+                }}
+              >
+                <span style={{fontSize:22}}>{s.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:T.ink}}>{s.title}</div>
+                </div>
+                <span style={{
+                  fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:100,
+                  background:s.color+"15",color:s.color,border:`1px solid ${s.color}30`,
+                  whiteSpace:"nowrap",
+                }}>{s.badge}</span>
+                <span style={{color:T.muted,fontSize:16,transition:"transform 0.2s",
+                  transform: open===s.id ? "rotate(90deg)" : "none"}}>
+                  ›
+                </span>
+              </div>
+              {open===s.id && (
+                <div style={{padding:"0 16px 16px"}}>
+                  <p style={{fontSize:13,color:T.muted,lineHeight:1.7,margin:"0 0 12px"}}>
+                    {s.text}
+                  </p>
+                  <div style={{
+                    background:s.color+"10",border:`1px solid ${s.color}30`,
+                    borderRadius:8,padding:"10px 12px",
+                    fontSize:12,fontWeight:600,color:s.color,
+                  }}>💡 {s.highlight}</div>
+                </div>
+              )}
+            </div>
+          ))}
+          {/* Footer link */}
+          <a
+            href="https://legislative.gov.in/sites/default/files/A2006-27.pdf"
+            target="_blank" rel="noreferrer"
+            style={{
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+              marginTop:8,padding:"12px",borderRadius:10,
+              background:T.content,border:`1px solid ${T.border}`,
+              fontSize:12,fontWeight:600,color:T.brand,textDecoration:"none",
+            }}
+          >
+            📄 View Full Act PDF (Legislative Dept. of India) →
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SAMADHAAN_STEPS = [
+  { step:1, icon:"📁", color:"#0EA5E9", title:"Gather Documents",
+    items:["Original invoice copy (PDF)","Proof of delivery / acceptance","Udyam Registration Certificate","Any payment correspondence / emails","Bank statements showing non-receipt"] },
+  { step:2, icon:"🌐", color:"#7C3AED", title:"Register on Samadhaan Portal",
+    items:["Go to samadhaan.msme.gov.in","Click 'MSME' → Register with your Udyam number","Verify mobile OTP & set password","Login to your dashboard"] },
+  { step:3, icon:"📝", color:"#F59E0B", title:"File the Application",
+    items:["Click 'File New Case'","Enter buyer company details & GSTIN","Enter invoice number, date & amount","Upload invoice PDF and evidence documents","Declare the amount with interest as calculated"] },
+  { step:4, icon:"⚖️", color:"#10B981", title:"Facilitation Council Process",
+    items:["Receive case reference number (keep this!)","Council notifies buyer within 15 days","Conciliation meeting scheduled (usually within 45 days)","If resolved: payment order issued","If not resolved: automatic arbitration begins"] },
+  { step:5, icon:"✅", color:"#10B981", title:"Award & Recovery",
+    items:["Arbitration award passed (enforceable as court decree)","Buyer must deposit 75% to challenge (Section 19)","File execution petition if buyer defaults on award","Interest continues to accrue until full payment"] },
+];
+
+function SamadhaaModal({ onClose, invoice }) {
+  const [checklist, setChecklist] = useState({});
+  const toggleCheck = (key) => setChecklist(c => ({...c, [key]: !c[key]}));
+  const totalItems = SAMADHAAN_STEPS.reduce((a, s) => a + s.items.length, 0);
+  const checked    = Object.values(checklist).filter(Boolean).length;
+  const pct        = Math.round((checked / totalItems) * 100);
+
+  return (
+    <div style={{
+      position:"fixed",inset:0,zIndex:1000,
+      background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",
+      display:"flex",alignItems:"center",justifyContent:"flex-end",
+    }} onClick={onClose}>
+      <div style={{
+        width:520,height:"100vh",background:T.white,
+        overflowY:"auto",boxShadow:"-8px 0 40px rgba(0,0,0,0.2)",
+        animation:"slideInRight 0.25s ease",
+      }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{
+          background:`linear-gradient(135deg,#1e1b4b,#312e81)`,
+          padding:"28px 28px 20px",position:"sticky",top:0,zIndex:1,
+        }}>
+          <button onClick={onClose} style={{
+            position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.08)",
+            border:"none",color:"rgba(255,255,255,0.6)",width:32,height:32,
+            borderRadius:"50%",cursor:"pointer",fontSize:18,display:"flex",
+            alignItems:"center",justifyContent:"center",
+          }}>×</button>
+          <div style={{fontSize:11,color:"#A78BFA",fontWeight:700,letterSpacing:"1px",marginBottom:6}}>GOVERNMENT PORTAL GUIDE</div>
+          <div style={{fontSize:22,fontWeight:800,color:T.white,marginBottom:4}}>🏛️ MSME Samadhaan</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.5,marginBottom:14}}>
+            Step-by-step guide to filing a delayed payment complaint under Section 18, MSMED Act 2006.
+          </div>
+          {/* Progress bar */}
+          <div style={{background:"rgba(255,255,255,0.1)",borderRadius:100,height:6}}>
+            <div style={{
+              width:`${pct}%`,height:6,borderRadius:100,
+              background:`linear-gradient(90deg,#A78BFA,#7C3AED)`,transition:"width 0.3s",
+            }}/>
+          </div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4}}>
+            {checked}/{totalItems} steps completed · {pct}% ready to file
+          </div>
+        </div>
+        {/* Steps */}
+        <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:16}}>
+          {SAMADHAAN_STEPS.map(s => (
+            <div key={s.step} style={{
+              border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden",
+            }}>
+              <div style={{
+                display:"flex",alignItems:"center",gap:10,
+                padding:"12px 14px",background:s.color+"08",
+                borderBottom:`1px solid ${s.color}25`,
+              }}>
+                <div style={{
+                  width:28,height:28,borderRadius:"50%",
+                  background:s.color+"20",border:`1px solid ${s.color}40`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:14,fontWeight:800,color:s.color,flexShrink:0,
+                }}>{s.step}</div>
+                <span style={{fontSize:18}}>{s.icon}</span>
+                <div style={{fontSize:13,fontWeight:700,color:T.ink}}>{s.title}</div>
+              </div>
+              <div style={{padding:"10px 14px",display:"flex",flexDirection:"column",gap:6}}>
+                {s.items.map((item, i) => {
+                  const key = `${s.step}-${i}`;
+                  return (
+                    <label key={key} style={{
+                      display:"flex",alignItems:"flex-start",gap:8,
+                      cursor:"pointer",fontSize:12,color: checklist[key] ? T.muted : T.ink,
+                      textDecoration: checklist[key] ? "line-through" : "none",
+                      transition:"all 0.15s",
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={!!checklist[key]}
+                        onChange={() => toggleCheck(key)}
+                        style={{marginTop:2,accentColor:s.color,flexShrink:0}}
+                      />
+                      {item}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* CTA buttons */}
+          <a
+            href="https://samadhaan.msme.gov.in"
+            target="_blank" rel="noreferrer"
+            style={{
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+              padding:"13px",borderRadius:10,
+              background:`linear-gradient(135deg,#7C3AED,#6D28D9)`,
+              fontSize:13,fontWeight:700,color:T.white,textDecoration:"none",
+              boxShadow:"0 4px 12px rgba(124,58,237,0.3)",
+            }}
+          >
+            🏛️ Open MSME Samadhaan Portal →
+          </a>
+          <a
+            href="https://msme.gov.in/"
+            target="_blank" rel="noreferrer"
+            style={{
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+              padding:"11px",borderRadius:10,
+              background:T.content,border:`1px solid ${T.border}`,
+              fontSize:12,fontWeight:600,color:T.muted,textDecoration:"none",
+            }}
+          >
+            🌐 Official MSME Ministry Website
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+//  SIDEBAR
+// ─────────────────────────────────────────────
+
+function Sidebar({ screen, setScreen, user, onLogout }) {
+  const [showMsmed,     setShowMsmed]     = useState(false);
+  const [showSamadhaan, setShowSamadhaan] = useState(false);
   const navItems = [
     { id:"upload",    icon:"📤", label:"Upload Invoice" },
-    { id:"dashboard", icon:"📊", label:"Dashboard" },
-    { id:"timeline",  icon:"📅", label:"Timeline" },
+    { id:"invoices",  icon:"📋", label:"My Invoices" },
   ];
   return (
+    <>
+    {showMsmed     && <MsmedActModal  onClose={() => setShowMsmed(false)} />}
+    {showSamadhaan && <SamadhaaModal  onClose={() => setShowSamadhaan(false)} />}
     <div style={S.sidebar}>
       <div style={S.sideGlow}/>
+
       <div style={S.sideLogoWrap}>
         <div style={S.sideLogo}>
           <span>⚖</span> Digital-Vakeel
@@ -261,19 +546,60 @@ function Sidebar({ screen, setScreen }) {
             {n.label}
           </div>
         ))}
-        <div style={S.sideSection}>Legal</div>
-        <div style={S.navItem(false)}>
+        <div style={S.sideSection}>Legal Resources</div>
+        <div style={{
+          ...S.navItem(false), position:"relative",
+          color:"rgba(255,255,255,0.55)",
+        }}
+          onClick={() => setShowMsmed(true)}
+        >
           <span style={S.navIcon}>📋</span> MSMED Act 2006
         </div>
-        <div style={S.navItem(false)}>
+        <div style={{
+          ...S.navItem(false),
+          color:"rgba(255,255,255,0.55)",
+        }}
+          onClick={() => setShowSamadhaan(true)}
+        >
           <span style={S.navIcon}>🏛️</span> Samadhaan Portal
+          <span style={{
+            marginLeft:"auto",fontSize:9,padding:"2px 6px",borderRadius:100,
+            background:"rgba(124,58,237,0.2)",color:"#C4B5FD",
+            border:"1px solid rgba(124,58,237,0.25)",
+          }}>Guide</span>
         </div>
       </div>
-      <div style={S.sideFooter}>
-        v1.0 · Hackathon Demo<br/>
-        Open-Source · Local AI
+      {/* User info + Logout */}
+      <div style={{
+        padding:"16px 20px", borderTop:"1px solid rgba(255,255,255,0.06)",
+      }}>
+        <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:12}}>
+          <div style={{
+            width:36, height:36, borderRadius:"50%",
+            background:`linear-gradient(135deg,${T.brand},${T.brandDim})`,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:14, color:T.white, fontWeight:700, flexShrink:0,
+          }}>{user?.name?.[0]?.toUpperCase() || "U"}</div>
+          <div style={{flex:1, minWidth:0}}>
+            <div style={{fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:600,
+              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{user?.name}</div>
+            <div style={{fontSize:10, color:"rgba(255,255,255,0.35)",
+              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{user?.email}</div>
+          </div>
+        </div>
+        <button onClick={onLogout} style={{
+          width:"100%", padding:"9px 0", borderRadius:8, fontSize:12, fontWeight:600,
+          background:"rgba(239,68,68,0.1)", color:"#F87171",
+          border:"1px solid rgba(239,68,68,0.2)", cursor:"pointer",
+          transition:"all 0.15s", display:"flex", alignItems:"center",
+          justifyContent:"center", gap:6, letterSpacing:"0.3px",
+        }}
+          onMouseOver={e => { e.currentTarget.style.background="rgba(239,68,68,0.2)"; e.currentTarget.style.color="#FCA5A5"; }}
+          onMouseOut={e => { e.currentTarget.style.background="rgba(239,68,68,0.1)"; e.currentTarget.style.color="#F87171"; }}
+        >🚪 Logout</button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -547,21 +873,142 @@ function UploadScreen({ onSubmit }) {
   );
 }
 
-// (Dashboard and Timeline screens remain exactly the same - keeping them short here)
-function DashboardScreen({ invoice }) {
-  const timeline = buildTimeline(invoice.invoiceDate);
+// ── INVOICE LIST SCREEN ─────────────────────────
+function InvoiceListScreen({ onSelectInvoice, onRefresh }) {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await getAllInvoices();
+        setInvoices(data || []);
+      } catch (e) { console.error(e); }
+      setLoading(false);
+    })();
+  }, [onRefresh]);
+
+  return (
+    <div style={S.scroll}>
+      {loading ? (
+        <div style={{textAlign:"center",padding:60,color:T.muted,fontSize:14}}>Loading invoices...</div>
+      ) : invoices.length === 0 ? (
+        <div style={{textAlign:"center",padding:60}}>
+          <div style={{fontSize:48,marginBottom:12}}>📭</div>
+          <div style={{fontWeight:700,fontSize:18,color:T.ink,marginBottom:8}}>No Invoices Yet</div>
+          <div style={{fontSize:13,color:T.muted}}>Upload your first invoice to start monitoring payments.</div>
+        </div>
+      ) : (
+        <>
+          <div style={{marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontWeight:700,fontSize:16,color:T.ink}}>
+              {invoices.length} Invoice{invoices.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+          <div style={S.card({padding:0,overflow:"hidden"})}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead>
+                <tr style={{background:T.content,borderBottom:`2px solid ${T.border}`}}>
+                  {["Invoice No.","Seller","Buyer","Date","Amount (₹)","Status",""].map(h => (
+                    <th key={h} style={{
+                      padding:"12px 16px",textAlign:"left",fontSize:11,fontWeight:700,
+                      color:T.muted,letterSpacing:"0.5px",textTransform:"uppercase",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map(inv => {
+                  const info = calcStatus(inv.invoice_date, inv.paid, inv.amount);
+                  return (
+                    <tr key={inv.id} style={{
+                      borderBottom:`1px solid ${T.border}`,cursor:"pointer",transition:"background 0.15s",
+                    }}
+                      onMouseOver={e => e.currentTarget.style.background="rgba(0,201,184,0.03)"}
+                      onMouseOut={e => e.currentTarget.style.background="transparent"}
+                      onClick={() => onSelectInvoice(inv)}
+                    >
+                      <td style={{padding:"14px 16px",fontWeight:600,color:T.ink}}>{inv.invoice_no}</td>
+                      <td style={{padding:"14px 16px",color:T.ink}}>{inv.seller_name}</td>
+                      <td style={{padding:"14px 16px",color:T.ink}}>{inv.buyer_name}</td>
+                      <td style={{padding:"14px 16px",color:T.muted}}>
+                        {new Date(inv.invoice_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}
+                      </td>
+                      <td style={{padding:"14px 16px",fontWeight:600,color:T.ink}}>
+                        ₹{Number(inv.amount).toLocaleString("en-IN")}
+                      </td>
+                      <td style={{padding:"14px 16px"}}>
+                        <span style={S.statusBadge(info.status)}>{info.status}</span>
+                      </td>
+                      <td style={{padding:"14px 16px",color:T.brand,fontSize:18}}>→</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── DASHBOARD SCREEN ──────────────────────────────
+function DashboardScreen({ invoice, onBack }) {
+  // buildTimeline available for future timeline screen
   const paid = invoice.paid === true;
   const liveInfo = calcStatus(invoice.invoiceDate, paid, invoice.amount);
-  
+
+  // ── Notice state ──
+  const [notices, setNotices] = useState([]);
+  const [noticeLoading, setNoticeLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [noticeResult, setNoticeResult] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+
+  // Load real notices from DB
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getNotices(invoice.id);
+        setNotices(data?.notices || []);
+      } catch (e) { console.error(e); }
+    })();
+  }, [invoice.id]);
+
+  const handleSendNotice = async () => {
+    setNoticeLoading(true);
+    setNoticeResult(null);
+    try {
+      const tmpl = selectedTemplate ? Number(selectedTemplate) : null;
+      const res = await sendNotice(invoice.id, tmpl, ["email"]);
+      const sent = res?.results?.email;
+      if (sent?.success) {
+        setNoticeResult({ ok: true, msg: `✅ Email sent! Template ${res.template_no}` });
+      } else {
+        setNoticeResult({ ok: false, msg: `❌ Failed: ${sent?.error || "Unknown error"}` });
+      }
+      const updated = await getNotices(invoice.id);
+      setNotices(updated?.notices || []);
+    } catch (e) {
+      setNoticeResult({ ok: false, msg: `❌ Error: ${e.message}` });
+    }
+    setNoticeLoading(false);
+  };
+
+  const handleExportPDF = async () => {
+    setPdfLoading(true);
+    try { await exportCasePDF(invoice.id); }
+    catch (e) { alert("PDF failed: " + e.message); }
+    setPdfLoading(false);
+  };
+
   const handleMarkPaid = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/invoices/${invoice.id}/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Payment failed");
-      await res.json();
-      window.location.reload();
+      await markPaid(invoice.id, liveInfo.total);
+      if (onBack) onBack();
+      else window.location.reload();
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -573,27 +1020,36 @@ function DashboardScreen({ invoice }) {
     "OVERDUE":T.red,"LEGAL NOTICE SENT":"#7C3AED","ESCALATION":"#9F1239","PAID":T.green,
   }[liveInfo.status] || T.brand;
 
+  const noticeColor = (type) => type === "whatsapp" ? "#25D366" : T.brand;
+  const noticeIcon  = (type) => type === "whatsapp" ? "💬" : "📧";
+
+
   return (
     <div style={S.scroll}>
+      {onBack && (
+        <button onClick={onBack} style={{
+          ...S.btnGhost, marginBottom:16, fontSize:12, padding:"8px 16px",
+        }}>← Back to Invoices</button>
+      )}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:24}}>
-        <div style={S.statBox(statusColor)}>
+        <div className="dash-card" style={S.statBox(statusColor)}>
           <div style={S.statLabel}>Current Status</div>
           <div style={{marginTop:6}}><span style={S.statusBadge(liveInfo.status)}>{liveInfo.status}</span></div>
           <div style={S.statSub}>{liveInfo.daysOverdue > 0 ? `${liveInfo.daysOverdue} days overdue` : liveInfo.daysUntilDue > 0 ? `${liveInfo.daysUntilDue} days remaining` : "Due today"}</div>
         </div>
-        <div style={S.statBox(T.ink)}>
+        <div className="dash-card" style={S.statBox(T.ink)}>
           <div style={S.statLabel}>Principal Amount</div>
           <div style={S.statValue(T.ink)}>₹{(invoice.amount/100000).toFixed(1)}L</div>
           <div style={S.statSub}>{invoice.invoiceNo}</div>
         </div>
-        <div style={S.statBox(T.red)}>
+        <div className="dash-card" style={S.statBox(T.red)}>
           <div style={S.statLabel}>Interest Accrued</div>
           <div style={S.statValue(paid ? T.green : liveInfo.interest > 0 ? T.red : T.muted)}>
             ₹{liveInfo.interest.toLocaleString("en-IN")}
           </div>
           <div style={S.statSub}>@ 19.5% p.a. (3× RBI)</div>
         </div>
-        <div style={S.statBox(paid ? T.green : T.amber)}>
+        <div className="dash-card" style={S.statBox(paid ? T.green : T.amber)}>
           <div style={S.statLabel}>Total Now Due</div>
           <div style={S.statValue(paid ? T.green : T.amber)}>
             ₹{(liveInfo.total/100000).toFixed(2)}L
@@ -671,36 +1127,92 @@ function DashboardScreen({ invoice }) {
 
         <div style={{display:"flex",flexDirection:"column",gap:20}}>
           <div style={S.card()}>
-            <div style={S.cardTitle}>📬 Automated Notices</div>
-            {NOTIFICATIONS.map(n => (
-              <div key={n.day} style={S.notifPill(n.color)}>
-                <span style={{fontSize:18}}>{n.icon}</span>
+            <div style={S.cardTitle}>📬 Legal Notices</div>
+
+            {/* ── Send Notice ── */}
+            {!paid && (
+              <div style={{
+                background:"rgba(0,201,184,0.04)", border:`1px solid rgba(0,201,184,0.2)`,
+                borderRadius:10, padding:14, marginBottom:16,
+              }}>
+                <div style={{fontSize:11,fontWeight:700,color:T.brand,marginBottom:8,
+                  letterSpacing:"0.5px",textTransform:"uppercase"}}>📤 Send Email Notice</div>
+                <select
+                  value={selectedTemplate}
+                  onChange={e => setSelectedTemplate(e.target.value)}
+                  style={{
+                    width:"100%", padding:"8px 10px", borderRadius:7,
+                    border:`1px solid ${T.border}`, fontSize:11, color:T.ink,
+                    marginBottom:10, background:T.white, outline:"none",
+                  }}
+                >
+                  <option value="">Auto-pick by overdue days</option>
+                  <option value="1">Template 1 — Soft Reminder</option>
+                  <option value="2">Template 2 — Formal Legal Notice</option>
+                  <option value="3">Template 3 — Final Escalation</option>
+                </select>
+                <button
+                  style={{
+                    ...S.btnPrimary, width:"100%", fontSize:12, padding:"9px",
+                    opacity: noticeLoading ? 0.6 : 1,
+                  }}
+                  onClick={handleSendNotice}
+                  disabled={noticeLoading}
+                >
+                  {noticeLoading ? "Sending..." : "📧 Send Email Notice"}
+                </button>
+                {noticeResult && (
+                  <div style={{
+                    marginTop:8, padding:"8px 10px", borderRadius:6,
+                    fontSize:11, fontWeight:600,
+                    background: noticeResult.ok ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+                    color: noticeResult.ok ? T.green : T.red,
+                    border: `1px solid ${noticeResult.ok ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+                  }}>{noticeResult.msg}</div>
+                )}
+              </div>
+            )}
+
+            {/* ── Notice History ── */}
+            <div style={{fontSize:10,fontWeight:700,color:T.muted,marginBottom:8,
+              letterSpacing:"0.5px",textTransform:"uppercase"}}>📜 History</div>
+            {notices.length === 0 ? (
+              <div style={{fontSize:11,color:T.muted,fontStyle:"italic",padding:"6px 0"}}>
+                No notices sent yet.
+              </div>
+            ) : notices.map((n, i) => (
+              <div key={i} style={S.notifPill(noticeColor(n.type))}>
+                <span style={{fontSize:18}}>{noticeIcon(n.type)}</span>
                 <div style={{flex:1}}>
-                  <div style={S.notifLabel(n.color)}>TEMPLATE {n.template} · DAY {n.day}</div>
-                  <div style={S.notifText}>{n.label}</div>
-                  <div style={{fontSize:10,color:T.muted}}>To: {n.to}</div>
+                  <div style={S.notifLabel(noticeColor(n.type))}>
+                    {n.type.toUpperCase()} · TEMPLATE {n.template_no}
+                  </div>
+                  <div style={S.notifText}>To: {n.sent_to}</div>
+                  <div style={{fontSize:10,color:T.muted}}>
+                    {new Date(n.sent_at).toLocaleString("en-IN",{
+                      day:"numeric",month:"short",year:"numeric",
+                      hour:"2-digit",minute:"2-digit",
+                    })}
+                  </div>
                 </div>
                 <span style={{
-                  fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:100,
-                  background:`${n.color}20`,color:n.color,border:`1px solid ${n.color}40`,
-                }}>SENT</span>
+                  fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:100,
+                  background: n.status==="sent" ? `${T.green}20` : `${T.red}20`,
+                  color: n.status==="sent" ? T.green : T.red,
+                  border:`1px solid ${n.status==="sent" ? T.green+"40" : T.red+"40"}`,
+                }}>{n.status.toUpperCase()}</span>
               </div>
             ))}
-            <div style={{
-              fontSize:11,color:T.muted,marginTop:8,padding:"8px 10px",
-              background:T.content,borderRadius:6,border:`1px solid ${T.border}`,
-            }}>
-              ℹ️ All notices sent automatically. No personal contact needed.
-            </div>
           </div>
+
 
           <div style={S.card()}>
             <div style={S.cardTitle}>⚖ Legal Standing</div>
             {[
-              { label:"MSMED Act Section 15", val:"45-day limit VIOLATED", color:T.red },
-              { label:"Formal Demand Made",   val:"Yes — 3 notices sent", color:T.green },
-              { label:"Evidence Trail",        val:"Digitally timestamped", color:T.green },
-              { label:"Samadhaan Eligible",    val:"Yes (after Day 67)", color:T.amber },
+              { label:"MSMED Act Section 15", val: liveInfo.daysOverdue > 0 ? "45-day limit VIOLATED" : "Within window", color: liveInfo.daysOverdue > 0 ? T.red : T.green },
+              { label:"Days Overdue",         val: liveInfo.daysOverdue > 0 ? `${liveInfo.daysOverdue} days` : "Not yet overdue", color: liveInfo.daysOverdue > 0 ? T.red : T.green },
+              { label:"Notices Dispatched",   val: `${notices.length} notice(s)`, color: notices.length > 0 ? T.green : T.muted },
+              { label:"Samadhaan Eligible",   val: liveInfo.daysOverdue >= 0 ? "Yes (after Day 45)" : "Not yet", color: T.amber },
             ].map(row => (
               <div key={row.label} style={{
                 display:"flex",justifyContent:"space-between",alignItems:"center",
@@ -710,6 +1222,20 @@ function DashboardScreen({ invoice }) {
                 <span style={{fontSize:11,fontWeight:700,color:row.color}}>{row.val}</span>
               </div>
             ))}
+
+            {/* Export PDF button */}
+            <button
+              onClick={handleExportPDF}
+              disabled={pdfLoading}
+              style={{
+                ...S.btnGhost, width:"100%", marginTop:14, fontSize:12,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                opacity: pdfLoading ? 0.6 : 1,
+                borderColor: T.brand, color: T.brand,
+              }}
+            >
+              {pdfLoading ? "Generating PDF..." : "🗂️ Export Case File (PDF)"}
+            </button>
           </div>
         </div>
       </div>
@@ -839,6 +1365,7 @@ function ChatWidget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -848,6 +1375,35 @@ function ChatWidget() {
 
   useEffect(() => { scrollToBottom(); }, [messages, loading]);
   useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+
+  // Load chat history when widget first opens
+  useEffect(() => {
+    if (open && !historyLoaded) {
+      (async () => {
+        try {
+          const data = await getChatHistory();
+          if (data?.history?.length > 0) {
+            const restored = [];
+            data.history.forEach(h => {
+              restored.push({ role: "user", text: h.question, time: new Date(h.created_at) });
+              restored.push({ role: "bot", text: h.answer, sources: h.sources || [], time: new Date(h.created_at) });
+            });
+            setMessages(restored);
+            setShowSuggestions(false);
+          }
+        } catch (e) { console.error("History load error:", e); }
+        setHistoryLoaded(true);
+      })();
+    }
+  }, [open, historyLoaded]);
+
+  const handleClearHistory = async () => {
+    try {
+      await clearChatHistory();
+      setMessages([]);
+      setShowSuggestions(true);
+    } catch (e) { console.error(e); }
+  };
 
   const sendMessage = async (question) => {
     if (!question.trim()) return;
@@ -859,36 +1415,24 @@ function ChatWidget() {
     setShowSuggestions(false);
 
     try {
-      const res = await fetch("http://localhost:5000/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: question.trim() }),
-      });
-      const json = await res.json();
-
-      if (json.ok && json.data) {
-        const botMsg = {
-          role: "bot",
-          text: json.data.answer || "I couldn't find an answer.",
-          sources: json.data.sources || [],
-          time: new Date(),
-        };
-        setMessages(prev => [...prev, botMsg]);
-      } else {
+      const data = await sendChatMessage(question.trim());
+      if (data) {
         setMessages(prev => [...prev, {
           role: "bot",
-          text: json.error || "Sorry, something went wrong. Please try again.",
-          sources: [],
+          text: data.answer || "I couldn't find an answer.",
+          sources: data.sources || [],
           time: new Date(),
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: "bot", text: "Sorry, something went wrong.", sources: [], time: new Date(),
         }]);
       }
     } catch (err) {
-      console.error("Chat error:", err);
       setMessages(prev => [...prev, {
         role: "bot",
-        text: "Could not connect to the server. Make sure the Flask backend is running with GEMINI_API_KEY set.",
-        sources: [],
-        time: new Date(),
+        text: err.message || "Could not connect to the server.",
+        sources: [], time: new Date(),
       }]);
     }
     setLoading(false);
@@ -1036,10 +1580,17 @@ function ChatWidget() {
           {/* Header */}
           <div style={chatStyles.header}>
             <div style={chatStyles.headerIcon}>⚖️</div>
-            <div>
+            <div style={{flex:1}}>
               <div style={chatStyles.headerTitle}>Digital-Vakeel AI</div>
-              <div style={chatStyles.headerSub}>Legal Assistant · Powered by Gemini</div>
+              <div style={chatStyles.headerSub}>Legal Assistant · Powered by Groq</div>
             </div>
+            {messages.length > 0 && (
+              <button
+                style={{...chatStyles.closeBtn, fontSize:12, marginRight:4}}
+                onClick={handleClearHistory}
+                title="Clear chat history"
+              >🗑️</button>
+            )}
             <button
               style={chatStyles.closeBtn}
               onClick={() => setOpen(false)}
@@ -1175,55 +1726,265 @@ function ChatWidget() {
 
 
 // ─────────────────────────────────────────────
+//  AUTH SCREENS
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+//  AUTH SCREENS (SOVEREIGN INTELLIGENCE - STITCH)
+// ─────────────────────────────────────────────
+
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState("login"); 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim()) return setError("Email is required");
+    if (!password) return setError("Password is required");
+
+    setLoading(true);
+    try {
+      if (mode === "signup") {
+        const data = await signup("Sovereign Entity", email.trim(), password);
+        onAuth(data.user);
+      } else {
+        const data = await login(email.trim(), password);
+        onAuth(data.user);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="bg-background text-on-background font-body selection:bg-primary/30 min-h-screen flex items-stretch overflow-hidden">
+        {/* Split Screen Container */}
+        <main className="flex w-full min-h-screen">
+            {/* Left Side: Sovereign Intelligence Visuals */}
+            <section className="hidden lg:flex lg:w-7/12 relative items-center justify-center p-12 overflow-hidden">
+                {/* Background Image with Overlay */}
+                <div className="absolute inset-0 z-0">
+                    <img alt="Scale of justice" className="w-full h-full object-cover opacity-40 mix-blend-luminosity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPjAB2jiJdYnLS_kmfDRmGBYGRwjx5k2GFoRMsU6_N9Ql42tcRlBSTvJlc1kE4g5CTHob995N8-1K9ONiMirQ4xO1RH9L9ERtNWN1LBlZ_9iG4vK69uWUIiXSjrQ_4voQ2Y9jTw8rJKr8WjKjj0gzsQSzCbz02-lB0uStgM7vakC3LJoYSHhcs54BMx58iKNhOvGj4Pbfa3HRnGaT89jjTNdrUePFWDVN4IXodMk7hG3PAhLBQjAAptTxPNFEOz2BVoRYZMfIc8sRi" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-background via-background/80 to-primary/10"></div>
+                </div>
+                {/* Floating Data Points Decorative Elements */}
+                <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_15px_#58f4e1]"></div>
+                <div className="absolute bottom-1/3 right-1/4 w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce shadow-[0_0_10px_#58f4e1]"></div>
+                <div className="absolute top-1/2 right-1/3 w-1 h-1 bg-tertiary-fixed-dim rounded-full shadow-[0_0_8px_#58f4e1]"></div>
+                {/* Content Card */}
+                <div className="relative z-10 max-w-xl glass-panel p-12 rounded-xl border border-white/5 glow-accent">
+                    <div className="mb-8">
+                        <span className="text-primary font-label text-sm uppercase tracking-[0.3em] font-bold mb-4 block">Future of Legal Defense</span>
+                        <h1 className="text-6xl font-headline font-black tracking-tighter text-on-surface leading-tight">
+                            Empowering <br/><span className="text-primary">MSMEs</span>
+                        </h1>
+                    </div>
+                    <p className="text-xl text-on-surface-variant font-light leading-relaxed mb-10 max-w-md">
+                        Access elite legal intelligence and sovereign document automation. Digital-Vakeel bridges the gap between complex law and small business growth.
+                    </p>
+                    <div className="flex items-center gap-6">
+                        <div className="flex -space-x-3">
+                            <img alt="User profile" className="w-10 h-10 rounded-full border-2 border-surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5iyTjeByu_9oOcpA0R_elZBNo3FIhHOrr1FYsnWK2ILsDtGs35f8KGp80WUthSyrBhVzrWsMzcllr0M9IjUvwN_usNBcBtZt99eIW78U6Jn1Vu6vxWytjIIblmVxG6XD6LrAyZ1_mObZb67EUHQI4KTQ6oLYW81Mass7FjJLJiVvHeSZ87_D0BRATejHGQIuz7h3I6bRm-frGzmDW0twa_LyIuPU50QuCNxP3jTAdPtU5wv3YlEPxfDZpwNtS0qiN2rJvkkrF6oBe" />
+                            <img alt="User profile" className="w-10 h-10 rounded-full border-2 border-surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrGYIl8ckCxzJnCtpE04YTwxI0NeEEITynJNRz0MlZvViYSBg2_ACVTSSowo2ZyAKLwkr9IBSCKvAzcroYDlegg7VnPUmnKt2L7W-8tmNuX159WhB5b3KSAoELspFTKynOSS_UX7L731O41BlT7GonyJv0i0-D1N2ygmoDBlH1SXgf7dPqm_jnb7T845ZQXz39qyj3_e60dE0vNlPZPAd-qR_XMQgK8wzETz-4dMcAQhQMd85gW--4fm5UF_1nHx8omkSDvLAI99h9" />
+                            <img alt="User profile" className="w-10 h-10 rounded-full border-2 border-surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzgGGYt3jzEntsOvC1xEzRMC-Rn6Ib1Z4riln4W2BJxKOatse6RyLo6i38zdJV1b07M4nRz5j3EhW1jfTZW5MsPUbffq6t08nMYMMStyo-6Ue-YkWOEORiZXzDJGVVIlB5XHQAkLXtrsOzYK7L4huFXQ-ISs5CQLBiYlvbgJAUb8ospFX-8VX297q_-AycxG-dbQyXtWMkp8yIOzObMiS1dDvxJUclrRqoI5ehquO9F3rTyBg3Rlw3aM736_PjYmLL5nCr2KOIQJDv" />
+                        </div>
+                        <p className="text-sm font-label text-on-surface/60 italic">Joined by 4,000+ Enterprises this month</p>
+                    </div>
+                </div>
+                {/* Bottom Brand Anchor */}
+                <div className="absolute bottom-12 left-12 flex items-center gap-3">
+                    <span className="text-2xl font-headline font-black tracking-tighter text-primary">Digital-Vakeel</span>
+                    <div className="w-1 h-1 rounded-full bg-outline-variant"></div>
+                    <span className="text-xs font-label uppercase tracking-widest text-on-surface-variant opacity-50">Sovereign Intel</span>
+                </div>
+            </section>
+            
+            {/* Right Side: Authentication Shell */}
+            <section className="w-full lg:w-5/12 bg-surface flex flex-col items-center justify-center p-8 md:p-16 xl:p-24 relative">
+                {/* Mobile Header Only */}
+                <div className="lg:hidden absolute top-8 left-8">
+                    <span className="text-2xl font-headline font-black tracking-tighter text-primary">Digital-Vakeel</span>
+                </div>
+                <div className="w-full max-w-md">
+                    <div className="mb-10">
+                        <h2 className="text-3xl font-headline font-bold text-on-surface mb-2">{mode === "login" ? "Welcome Back" : "Initialize Access"}</h2>
+                        <p className="text-on-surface-variant">{mode === "login" ? "Sign in to your sovereign legal dashboard." : "Create your private MSME enforcement portal."}</p>
+                    </div>
+                    {/* Toggle Navigation */}
+                    <div className="flex p-1 bg-surface-container-low rounded-lg mb-8">
+                        <button 
+                          onClick={() => { setMode("login"); setError(""); }}
+                          type="button"
+                          className={`flex-1 py-2 text-sm font-label font-bold rounded-md transition-all duration-300 ${mode === "login" ? "bg-surface-container-highest text-primary" : "text-on-surface-variant hover:text-on-surface"}`}>
+                            Login
+                        </button>
+                        <button 
+                          onClick={() => { setMode("signup"); setError(""); }}
+                          type="button"
+                          className={`flex-1 py-2 text-sm font-label font-bold rounded-md transition-all duration-300 ${mode === "signup" ? "bg-surface-container-highest text-primary" : "text-on-surface-variant hover:text-on-surface"}`}>
+                            Sign Up
+                        </button>
+                    </div>
+                    
+                    {error && (
+                      <div className="mb-6 p-4 bg-error-container text-on-error-container text-sm font-medium rounded-lg border border-error-dim">
+                        {error}
+                      </div>
+                    )}
+
+                    <div className="relative flex items-center justify-center mb-8">
+                        <div className="w-full border-t border-outline-variant/30"></div>
+                        <span className="absolute px-4 bg-surface text-[10px] uppercase tracking-widest text-on-surface-variant/50">Authenticate via Credentials</span>
+                    </div>
+
+                    {/* Authentication Form */}
+                    <form className="space-y-6" onSubmit={handleSubmit}>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-label uppercase tracking-widest text-on-surface-variant ml-1">Email Identity</label>
+                            <div className="relative group">
+                                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant transition-colors group-focus-within:text-primary">alternate_email</span>
+                                <input 
+                                  value={email}
+                                  onChange={e => setEmail(e.target.value)}
+                                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-xl py-3.5 pl-12 pr-4 text-on-surface font-body placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary/50 auth-input transition-all" 
+                                  placeholder="director@entity.com" 
+                                  type="email"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center px-1">
+                                <label className="text-xs font-label uppercase tracking-widest text-on-surface-variant">Security Key</label>
+                            </div>
+                            <div className="relative group">
+                                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant transition-colors group-focus-within:text-primary">lock_open</span>
+                                <input 
+                                  value={password}
+                                  onChange={e => setPassword(e.target.value)}
+                                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-xl py-3.5 pl-12 pr-12 text-on-surface font-body placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary/50 auth-input transition-all" 
+                                  placeholder="••••••••" 
+                                  type="password"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <div className="relative flex items-center">
+                                    <input className="peer h-5 w-5 opacity-0 absolute cursor-pointer" type="checkbox" />
+                                    <div className="h-5 w-5 border-2 border-outline-variant rounded-md peer-checked:bg-primary peer-checked:border-primary transition-all duration-200"></div>
+                                    <span className="material-symbols-outlined absolute text-[14px] text-surface font-black left-1 opacity-0 peer-checked:opacity-100">check</span>
+                                </div>
+                                <span className="text-xs font-label text-on-surface-variant group-hover:text-on-surface transition-colors">Persistent Session</span>
+                            </label>
+                        </div>
+                        {/* Primary Action */}
+                        <button 
+                          disabled={loading}
+                          className="w-full group relative overflow-hidden bg-gradient-to-br from-primary to-primary-container p-[1px] rounded-xl shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all duration-300 active:scale-95 disabled:opacity-60" 
+                          type="submit"
+                        >
+                            <div className="bg-gradient-to-br from-primary to-primary-container px-8 py-4 rounded-[11px] flex items-center justify-center gap-2 transition-all">
+                                <span className="text-on-primary font-label font-bold uppercase tracking-widest text-sm">
+                                  {loading ? "Authenticating..." : mode === "login" ? "Initialize Access" : "Create Entity"}
+                                </span>
+                                <span className="material-symbols-outlined text-on-primary group-hover:translate-x-1 transition-transform">arrow_forward_ios</span>
+                            </div>
+                        </button>
+                    </form>
+                    {/* Footer Context */}
+                    <div className="mt-12 text-center">
+                        <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/40 leading-loose">
+                            By initializing access, you agree to our <br/>
+                            <a className="text-on-surface hover:text-primary underline underline-offset-4 decoration-primary/30 transition-colors" href="#">Digital Sovereignty Protocol</a> &amp; <a className="text-on-surface hover:text-primary underline underline-offset-4 decoration-primary/30 transition-colors" href="#">Data Privacy Charter</a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────
 //  ROOT APP
 // ─────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen]   = useState("upload");
-  const [invoice, setInvoice] = useState(DUMMY_INVOICE);
+  const [user, setUser] = useState(getStoredUser());
+  const [screen, setScreen] = useState("upload");
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const isLoggedIn = !!user && !!getToken();
+
+  const handleAuth = (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+  };
+
+  if (!isLoggedIn) {
+    return <AuthScreen onAuth={handleAuth} />;
+  }
+
+  const handleSelectInvoice = (inv) => {
+    setSelectedInvoice({
+      id: inv.id,
+      invoiceNo: inv.invoice_no,
+      invoiceDate: inv.invoice_date,
+      sellerName: inv.seller_name,
+      buyerName: inv.buyer_name,
+      amount: inv.amount,
+      paid: inv.paid,
+      buyerGstin: inv.buyer_gstin || "",
+      buyerContact: inv.buyer_contact || "",
+      udyamId: inv.udyam_id || "",
+    });
+    setScreen("dashboard");
+  };
+
+  const handleBackToList = () => {
+    setSelectedInvoice(null);
+    setRefreshKey(k => k + 1);
+    setScreen("invoices");
+  };
 
   const screenTitles = {
     upload:    { title:"Upload Invoice",  sub:"Digitise and register a new invoice for monitoring" },
-    dashboard: { title:"Invoice Dashboard", sub:`Monitoring: ${invoice.invoiceNo} · ${invoice.sellerName} → ${invoice.buyerName}` },
-    timeline:  { title:"Case Timeline",   sub:"Full day-by-day story of this invoice" },
+    invoices:  { title:"My Invoices",     sub:"All your tracked invoices in one place" },
+    dashboard: { title:"Invoice Dashboard", sub: selectedInvoice ? `${selectedInvoice.invoiceNo} · ${selectedInvoice.sellerName} → ${selectedInvoice.buyerName}` : "Select an invoice" },
+    timeline:  { title:"Case Timeline",   sub: selectedInvoice ? `Timeline for ${selectedInvoice.invoiceNo}` : "Select an invoice" },
   };
   const t = screenTitles[screen];
 
   const handleUploadSubmit = async (data) => {
     try {
-      const res = await fetch("http://localhost:5000/invoices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) throw new Error("Invoice upload failed");
-      const result = await res.json();
-
-      setInvoice({
-        id: result.data.id,
-        invoiceNo: result.data.invoice_no,
-        invoiceDate: result.data.invoice_date,
-        sellerName: result.data.seller_name,
-        buyerName: result.data.buyer_name,
-        amount: result.data.amount,
-        paid: result.data.paid,
-        buyerGstin: result.data.buyer_gstin,
-        buyerContact: result.data.buyer_contact,
-        udyamId: result.data.udyam_id,
-      });
-
-      setTimeout(() => setScreen("dashboard"), 1200);
-      return true;
+      const result = await createInvoice(data);
+      if (result) {
+        setRefreshKey(k => k + 1);
+        setTimeout(() => setScreen("invoices"), 1200);
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error(err);
-      alert("Failed to upload invoice");
+      alert("Failed to upload invoice: " + err.message);
       return false;
     }
   };
 
   return (
     <div style={S.app}>
-      <Sidebar screen={screen} setScreen={setScreen}/>
+      <Sidebar screen={screen} setScreen={(s) => { setScreen(s); if (s !== "dashboard" && s !== "timeline") setSelectedInvoice(null); }} user={user} onLogout={handleLogout} />
       <div style={S.main}>
         <div style={S.topbar}>
           <div>
@@ -1231,22 +1992,30 @@ export default function App() {
             <div style={S.topSub}>{t.sub}</div>
           </div>
           <div style={S.topRight}>
-            <span style={S.topBadge}>⚡ Live Demo</span>
+            <span style={S.topBadge}>👤 {user.name}</span>
             <div style={{
               width:32,height:32,borderRadius:"50%",
               background:`linear-gradient(135deg,${T.brand},${T.brandDim})`,
               display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:14,color:T.white,fontWeight:700,
-            }}>A</div>
+            }}>{user.name?.[0]?.toUpperCase()}</div>
           </div>
         </div>
 
-        {screen === "upload"    && <UploadScreen    onSubmit={handleUploadSubmit}/>}
-        {screen === "dashboard" && <DashboardScreen invoice={invoice}/>}
-        {screen === "timeline"  && <TimelineScreen  invoice={invoice}/>}
+        {screen === "upload"    && <UploadScreen onSubmit={handleUploadSubmit}/>}
+        {screen === "invoices"  && <InvoiceListScreen onSelectInvoice={handleSelectInvoice} onRefresh={refreshKey}/>}
+        {screen === "dashboard" && selectedInvoice && <DashboardScreen invoice={selectedInvoice} onBack={handleBackToList}/>}
+        {screen === "timeline"  && selectedInvoice && <TimelineScreen invoice={selectedInvoice}/>}
+        {(screen === "dashboard" || screen === "timeline") && !selectedInvoice && (
+          <div style={{...S.scroll,textAlign:"center",paddingTop:80}}>
+            <div style={{fontSize:48,marginBottom:12}}>📋</div>
+            <div style={{fontWeight:700,fontSize:18,color:T.ink,marginBottom:8}}>No Invoice Selected</div>
+            <div style={{fontSize:13,color:T.muted,marginBottom:20}}>Go to My Invoices and select one to view.</div>
+            <button style={S.btnPrimary} onClick={() => setScreen("invoices")}>View My Invoices</button>
+          </div>
+        )}
       </div>
 
-      {/* RAG Legal Assistant Chat Widget */}
       <ChatWidget />
     </div>
   );

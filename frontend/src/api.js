@@ -1,25 +1,64 @@
 // ============================================================
 //  api.js  —  Digital-Vakeel Frontend API Client
-//  Person D drops this file into src/api.js
-//  Then replaces all useState dummy data calls with these functions.
-//
-//  HOW TO USE:
-//  import { createInvoice, getInvoice, markPaid } from './api';
+//  Includes auth (signup/login), protected routes with JWT,
+//  and chat history functions.
 // ============================================================
 
-const BASE_URL = "http://localhost:5000";   // ← Person B's Flask server
+const BASE_URL = "http://localhost:5000";
 
-// ─────────────────────────────────────────────────────────────
-//  HELPER — all fetch calls go through here
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  TOKEN MANAGEMENT
+// ─────────────────────────────────────────────
+
+export function getToken() {
+  return localStorage.getItem("dv_token");
+}
+
+export function setToken(token) {
+  localStorage.setItem("dv_token", token);
+}
+
+export function removeToken() {
+  localStorage.removeItem("dv_token");
+  localStorage.removeItem("dv_user");
+}
+
+export function getStoredUser() {
+  const u = localStorage.getItem("dv_user");
+  return u ? JSON.parse(u) : null;
+}
+
+export function setStoredUser(user) {
+  localStorage.setItem("dv_user", JSON.stringify(user));
+}
+
+
+// ─────────────────────────────────────────────
+//  API FETCH HELPER (with JWT)
+// ─────────────────────────────────────────────
 
 async function apiFetch(path, options = {}) {
+  const token = getToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   try {
-    const res  = await fetch(`${BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers,
       ...options,
+      // For FormData, remove Content-Type so browser sets it
+      ...(options.body instanceof FormData ? { headers: { Authorization: `Bearer ${token}` } } : {}),
     });
     const json = await res.json();
+
+    // Handle expired token
+    if (res.status === 401 || res.status === 422) {
+      removeToken();
+      window.location.reload();
+      return null;
+    }
 
     if (!res.ok || !json.ok) {
       throw new Error(json.error || `API error: ${res.status}`);
@@ -27,135 +66,184 @@ async function apiFetch(path, options = {}) {
     return json.data;
 
   } catch (err) {
-    // If Flask isn't running, fall back to dummy data gracefully
     if (err.message.includes("Failed to fetch")) {
-      console.warn("⚠️  Flask server not running. Using dummy data.");
-      return null;   // caller checks for null and uses fallback
+      console.warn("⚠️  Flask server not running.");
+      return null;
     }
     throw err;
   }
 }
 
 
-// ─────────────────────────────────────────────────────────────
-//  INVOICE FUNCTIONS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  AUTH FUNCTIONS
+// ─────────────────────────────────────────────
 
-/**
- * Create a new invoice.
- * Called when the Upload screen form is submitted.
- *
- * @param {Object} formData - matches the Invoice dataclass fields
- * @returns {Object} full invoice with calculated status, interest etc.
- */
+export async function signup(name, email, password) {
+  const res = await fetch(`${BASE_URL}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.ok) {
+    throw new Error(json.error || "Signup failed");
+  }
+  setToken(json.data.token);
+  setStoredUser(json.data.user);
+  return json.data;
+}
+
+export async function login(email, password) {
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.ok) {
+    throw new Error(json.error || "Login failed");
+  }
+  setToken(json.data.token);
+  setStoredUser(json.data.user);
+  return json.data;
+}
+
+export function logout() {
+  removeToken();
+}
+
+
+// ─────────────────────────────────────────────
+//  INVOICE FUNCTIONS (JWT-protected)
+// ─────────────────────────────────────────────
+
 export async function createInvoice(formData) {
   return apiFetch("/invoices", {
-    method:  "POST",
-    body:    JSON.stringify(formData),
+    method: "POST",
+    body: JSON.stringify(formData),
   });
 }
 
-/**
- * Get all invoices (for dashboard list).
- * Returns array of invoice objects, all with live-calculated values.
- */
 export async function getAllInvoices() {
   return apiFetch("/invoices");
 }
 
-/**
- * Get one invoice by ID.
- * @param {string} invoiceId - the short ID like "A3B7C2D1"
- */
 export async function getInvoice(invoiceId) {
   return apiFetch(`/invoices/${invoiceId}`);
 }
 
-/**
- * Mark an invoice as paid. Stops all interest and notices.
- * Called when "Mark as Paid" button is clicked.
- *
- * @param {string} invoiceId
- * @param {number} paidAmount - actual amount the buyer sent
- */
 export async function markPaid(invoiceId, paidAmount) {
   return apiFetch(`/invoices/${invoiceId}/pay`, {
     method: "POST",
-    body:   JSON.stringify({ paid_amount: paidAmount }),
+    body: JSON.stringify({ paid_amount: paidAmount }),
   });
 }
 
-/**
- * Get today's notification triggers for one invoice.
- * Person C uses this to know what to send.
- */
-export async function getTriggers(invoiceId) {
-  return apiFetch(`/invoices/${invoiceId}/triggers`);
-}
-
-/**
- * Get summary stats for the dashboard header.
- */
 export async function getSummary() {
   return apiFetch("/summary");
 }
 
-/**
- * Extract invoice data from PDF using OCR.
- * Called when user uploads a PDF file.
- * 
- * @param {File} pdfFile - The PDF file object from file input
- * @returns {Object} extracted invoice fields
- */
+
+// ─────────────────────────────────────────────
+//  OCR (JWT-protected)
+// ─────────────────────────────────────────────
+
 export async function extractInvoicePDF(pdfFile) {
   const formData = new FormData();
   formData.append("file", pdfFile);
-  
+  const token = getToken();
+
   try {
     const res = await fetch(`${BASE_URL}/ocr/extract`, {
       method: "POST",
-      body: formData,  // Don't set Content-Type header - browser does it automatically
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     });
-    
     const json = await res.json();
-    if (!res.ok || !json.ok) {
-      throw new Error(json.error || "OCR extraction failed");
-    }
-    
+    if (!res.ok || !json.ok) throw new Error(json.error || "OCR failed");
     return json.data;
   } catch (err) {
     console.error("OCR Error:", err);
-    return null;  // Return null on failure, caller can handle gracefully
+    return null;
   }
 }
 
 
+// ─────────────────────────────────────────────
+//  CHAT FUNCTIONS (JWT-protected)
+// ─────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-//  DUMMY DATA FALLBACK
-//  Used when Flask isn't running yet (early development)
-//  Person D uses this until Person B's server is ready.
-// ─────────────────────────────────────────────────────────────
+export async function sendChatMessage(question) {
+  return apiFetch("/chat", {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
 
-export const DUMMY_INVOICE = {
-  id:            "DEMO0001",
-  seller_name:   "Arjun Textiles",
-  buyer_name:    "Mega-Retail Corp",
-  invoice_no:    "INV-2025-101",
-  invoice_date:  "2025-02-01",
-  amount:        500000,
-  udyam_id:      "UDYAM-TN-07-0012345",
-  buyer_gstin:   "27AABCU9603R1ZM",
-  buyer_contact: "finance@megaretail.com",
-  paid:          false,
-  status:        "LEGAL NOTICE SENT",
-  days_overdue:  20,
-  days_until_due: 0,
-  interest_accrued: 5342.47,
-  total_due:     505342.47,
-  due_date:      "2025-03-17",
-  notices_sent: [
-    { template_no: 1, channel: "whatsapp", sent_to: "finance@megaretail.com", sent_at: "2025-03-18T09:00:00" },
-    { template_no: 2, channel: "email",    sent_to: "finance@megaretail.com", sent_at: "2025-04-01T09:00:00" },
-  ],
-};
+export async function getChatHistory() {
+  return apiFetch("/chat/history");
+}
+
+export async function clearChatHistory() {
+  return apiFetch("/chat/history", { method: "DELETE" });
+}
+
+export async function getChatSuggestions() {
+  try {
+    const res = await fetch(`${BASE_URL}/chat/suggestions`);
+    const json = await res.json();
+    return json.data?.suggestions || [];
+  } catch {
+    return [];
+  }
+}
+
+
+// ─────────────────────────────────────────────
+//  NOTICE & PDF FUNCTIONS (JWT-protected)
+// ─────────────────────────────────────────────
+
+/**
+ * Manually send a legal notice for an invoice.
+ * @param {string} invoiceId
+ * @param {number} templateNo - 1, 2, or 3 (auto-picked if null)
+ * @param {string[]} channels - ['email'] | ['whatsapp'] | ['email','whatsapp']
+ */
+export async function sendNotice(invoiceId, templateNo = null, channels = ["email"]) {
+  return apiFetch(`/invoices/${invoiceId}/send-notice`, {
+    method: "POST",
+    body: JSON.stringify({ template_no: templateNo, channels }),
+  });
+}
+
+/**
+ * Get all notices sent for an invoice.
+ */
+export async function getNotices(invoiceId) {
+  return apiFetch(`/invoices/${invoiceId}/notices`);
+}
+
+/**
+ * Trigger PDF download for an invoice case file.
+ * Opens the PDF in a new browser tab (browser handles download).
+ */
+export async function exportCasePDF(invoiceId) {
+  const token = getToken();
+  const url   = `${BASE_URL}/invoices/${invoiceId}/export-pdf`;
+  // We open with token in header — use a fetch + blob approach
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("PDF generation failed");
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = `DigitalVakeel_Case_${invoiceId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+}
+

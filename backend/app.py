@@ -1,30 +1,47 @@
 # ============================================================
 #  app.py  —  Digital-Vakeel Flask API Server
+#  Features: JWT Auth, Per-User Data, RAG Chat with History
 #  Run this with: python app.py
-#  The React frontend (Person D) talks to this server.
 # ============================================================
+
 import requests
 from flask import Flask, request, jsonify
-from urllib.request import Request, urlopen
-from urllib.error import URLError, HTTPError
+from flask_jwt_extended import (
+    JWTManager, create_access_token, jwt_required, get_jwt_identity
+)
+import bcrypt
 import json
 import os
-from invoice_engine import (
-    Invoice, save_invoice, get_invoice,
-    get_all_invoices, mark_paid, check_triggers, calculate
-)
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
+from invoice_engine import Invoice, calculate
 
 app = Flask(__name__)
-OCR_SERVICE_URL = os.environ.get("OCR_SERVICE_URL", "http://localhost:8000/extract")
 
-# ─────────────────────────────────────────────────────────────
-#  RAG CHATBOT ENGINE  —  Legal Assistant powered by Gemini AI
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  JWT CONFIG
+# ─────────────────────────────────────────────
+app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET", "digital-vakeel-secret-key-2026")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
+jwt = JWTManager(app)
+
+# ─────────────────────────────────────────────
+#  DATABASE
+# ─────────────────────────────────────────────
+from database import (
+    init_db, create_user, get_user_by_email, get_user_by_id,
+    save_chat_message, get_chat_history, clear_chat_history,
+    save_invoice_db, get_invoices_for_user, get_invoice_by_id, mark_invoice_paid_db,
+    log_notice, get_notices,
+)
+
+
+# ─────────────────────────────────────────────
+#  RAG ENGINE
+# ─────────────────────────────────────────────
 rag_engine = None
 
 def init_rag():
-    """Initialize the RAG engine. Called at startup."""
     global rag_engine
     try:
         from rag_engine import RAGEngine
@@ -33,163 +50,154 @@ def init_rag():
             print("✅ RAG Legal Assistant is READY!")
         else:
             print("⚠️  RAG engine loaded but vector store not found.")
-            print("   Run: python build_vectorstore.py")
-    except ValueError as e:
-        print(f"⚠️  RAG engine not initialized: {e}")
-        print("   Chat endpoint will return an error until API key is set.")
     except Exception as e:
-        print(f"⚠️  RAG engine failed to load: {e}")
-        print("   Chat endpoint will be unavailable.")
+        print(f"⚠️  RAG engine failed: {e}")
 
-# Initialize RAG at module load (works with Flask debug reloader)
 init_rag()
 
-# ─────────────────────────────────────────────────────────────
-#  CORS  —  Allows React (localhost:3000) to call this server
-#  Without this, the browser will block every request.
-#
-#  Install on YOUR machine first:
-#    pip install flask-cors
-#
-#  Then uncomment these two lines:
-#  from flask_cors import CORS
-#  CORS(app)
-#
-#  OR use the manual CORS headers below (works without installing anything)
-# ─────────────────────────────────────────────────────────────
+OCR_SERVICE_URL = os.environ.get("OCR_SERVICE_URL", "http://localhost:8000/extract")
 
-def add_cors(response):
-    """Add CORS headers to every response so React can talk to us."""
-    response.headers["Access-Control-Allow-Origin"]  = "http://localhost:3000"
+
+# ─────────────────────────────────────────────
+#  CORS
+# ─────────────────────────────────────────────
+
+@app.after_request
+def after_request(response):
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
 
-@app.after_request
-def after_request(response):
-    return add_cors(response)
-
 @app.before_request
 def handle_preflight():
-    """
-    Browsers send an OPTIONS 'preflight' request before every real request.
-    We must respond with 200 OK or the real request never gets sent.
-    """
     if request.method == "OPTIONS":
         from flask import make_response
         resp = make_response()
-        resp.headers["Access-Control-Allow-Origin"]  = "http://localhost:3000"
+        resp.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         return resp, 200
 
 
-# ─────────────────────────────────────────────────────────────
-#  HELPER
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  HELPERS
+# ─────────────────────────────────────────────
 
 def success(data, status=200):
-    """Standard success response wrapper."""
-    return jsonify({"ok": True,  "data": data}), status
+    return jsonify({"ok": True, "data": data}), status
 
 def error(message, status=400):
-    """Standard error response wrapper."""
     return jsonify({"ok": False, "error": message}), status
 
 
-def _clean_value(value):
-    if value is None:
-        return ""
-    return str(value).strip()
+# ═════════════════════════════════════════════
+#  AUTH ROUTES
+# ═════════════════════════════════════════════
+
+@app.route("/auth/signup", methods=["POST"])
+def signup():
+    body = request.get_json()
+    if not body:
+        return error("Request body required")
+
+    name = (body.get("name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+
+    # Validate
+    if not name or len(name) < 2:
+        return error("Name must be at least 2 characters")
+    if not email or "@" not in email:
+        return error("Valid email is required")
+    if len(password) < 6:
+        return error("Password must be at least 6 characters")
+
+    # Hash password
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    # Create user
+    user = create_user(name, email, password_hash)
+    if not user:
+        return error("Email already registered. Please login.", status=409)
+
+    # Generate JWT
+    token = create_access_token(identity=str(user["id"]))
+
+    return success({
+        "token": token,
+        "user": {"id": user["id"], "name": user["name"], "email": user["email"]},
+    }, status=201)
 
 
-def _extract_amount(value):
-    cleaned = _clean_value(value)
-    if not cleaned:
-        return None
-    digits = "".join(ch for ch in cleaned if ch.isdigit() or ch in ".,")
-    if not digits:
-        return None
-    try:
-        return float(digits.replace(",", ""))
-    except ValueError:
-        return None
+@app.route("/auth/login", methods=["POST"])
+def login():
+    body = request.get_json()
+    if not body:
+        return error("Request body required")
+
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+
+    if not email or not password:
+        return error("Email and password are required")
+
+    # Find user
+    user = get_user_by_email(email)
+    if not user:
+        return error("Invalid email or password", status=401)
+
+    # Check password
+    if not bcrypt.checkpw(password.encode("utf-8"), user["password_hash"].encode("utf-8")):
+        return error("Invalid email or password", status=401)
+
+    # Generate JWT
+    token = create_access_token(identity=str(user["id"]))
+
+    return success({
+        "token": token,
+        "user": {"id": user["id"], "name": user["name"], "email": user["email"]},
+    })
 
 
-def _normalize_date(value):
-    raw = _clean_value(value)
-    if not raw:
-        return ""
-    if ":" in raw:
-        raw = raw.split(":", 1)[1].strip()
-
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
-        try:
-            return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-    return ""
+@app.route("/auth/me", methods=["GET"])
+@jwt_required()
+def get_me():
+    """Get current user info from JWT token."""
+    user_id = int(get_jwt_identity())
+    user = get_user_by_id(user_id)
+    if not user:
+        return error("User not found", status=404)
+    return success(user)
 
 
-def map_extracted_fields(fields):
-    """Map extractor keys to Digital-Vakeel invoice schema."""
-    return {
-        "sellerName": _clean_value(fields.get("SELLER_NAME")),
-        "buyerName": _clean_value(fields.get("BUYER_NAME")),
-        "invoiceNo": _clean_value(fields.get("INVOICE_NUMBER")).replace("Invoice No:", "").strip(),
-        "invoiceDate": _normalize_date(fields.get("INVOICE_DATE")),
-        "amount": _extract_amount(fields.get("INVOICE_AMOUNT")),
-        "udyamId": _clean_value(fields.get("UDYAM_ID")),
-        "buyerGstin": _clean_value(fields.get("BUYER_GSTIN")),
-        "buyerContact": _clean_value(fields.get("BUYER_EMAIL")),
-    }
-
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 1 — Health Check
-#  GET /
-#  Person D calls this to confirm the server is running.
-#  Test in browser: http://localhost:5000/
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════
+#  HEALTH CHECK
+# ═════════════════════════════════════════════
 
 @app.route("/", methods=["GET"])
 def health():
     return success({
-        "service":   "Digital-Vakeel API",
-        "status":    "running",
+        "service": "Digital-Vakeel API",
+        "status": "running",
         "timestamp": datetime.now().isoformat(),
-        "version":   "1.0.0",
+        "version": "2.0.0",
     })
 
 
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 2 — Create Invoice
-#  POST /invoices
-#  Called when person submits the Upload screen form (Person D).
-#
-#  Request body (JSON):
-#  {
-#    "seller_name":   "Arjun Textiles",
-#    "buyer_name":    "Mega-Retail Corp",
-#    "invoice_no":    "INV-2025-101",
-#    "invoice_date":  "2025-02-01",
-#    "amount":        500000,
-#    "udyam_id":      "UDYAM-TN-07-0012345",   (optional)
-#    "buyer_gstin":   "27AABCU9603R1ZM",        (optional)
-#    "buyer_contact": "finance@megaretail.com"  (optional)
-#  }
-#
-#  Response: full invoice object with calculated fields
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════
+#  INVOICE ROUTES (protected, per-user)
+# ═════════════════════════════════════════════
+
 @app.route("/invoices", methods=["POST"])
+@jwt_required()
 def create_invoice():
+    user_id = int(get_jwt_identity())
     body = request.get_json()
-    print("📥 Incoming invoice data:", body)
 
     if not body:
         return error("Request body must be JSON")
 
-    # Map camelCase → snake_case
     data = {
         "seller_name": body.get("sellerName") or body.get("seller_name"),
         "buyer_name": body.get("buyerName") or body.get("buyer_name"),
@@ -201,14 +209,11 @@ def create_invoice():
         "buyer_gstin": body.get("buyerGstin") or body.get("buyer_gstin", ""),
     }
 
-    # Validate required fields
     required = ["seller_name", "buyer_name", "invoice_no", "invoice_date", "amount"]
     missing = [f for f in required if not data.get(f)]
-
     if missing:
         return error(f"Missing required fields: {', '.join(missing)}")
 
-    # Validate amount
     try:
         amount = float(data["amount"])
         if amount <= 0:
@@ -216,320 +221,244 @@ def create_invoice():
     except (ValueError, TypeError):
         return error("Amount must be a positive number")
 
-    # Validate date format
     try:
         datetime.strptime(data["invoice_date"], "%Y-%m-%d")
     except Exception:
         return error("invoice_date must be in YYYY-MM-DD format")
 
     invoice = Invoice(
-        seller_name   = data["seller_name"].strip(),
-        buyer_name    = data["buyer_name"].strip(),
-        invoice_no    = data["invoice_no"].strip(),
-        invoice_date  = data["invoice_date"],
-        amount        = amount,
-        udyam_id      = data["udyam_id"].strip(),
-        buyer_contact = data["buyer_contact"].strip(),
-        buyer_gstin   = data["buyer_gstin"].strip(),
+        seller_name=data["seller_name"].strip(),
+        buyer_name=data["buyer_name"].strip(),
+        invoice_no=data["invoice_no"].strip(),
+        invoice_date=data["invoice_date"],
+        amount=amount,
+        udyam_id=data.get("udyam_id", "").strip(),
+        buyer_contact=data.get("buyer_contact", "").strip(),
+        buyer_gstin=data.get("buyer_gstin", "").strip(),
     )
 
-    saved = save_invoice(invoice)
-    return success(saved.to_dict(), status=201)
+    # Save to SQLite (per-user)
+    invoice_dict = invoice.to_dict()
+    save_invoice_db(user_id, invoice_dict)
 
+    return success(invoice_dict, status=201)
 
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 3 — Get All Invoices
-#  GET /invoices
-#  Called by Person D's Dashboard to load the invoice list.
-#  All values are recalculated live (interest, status, days).
-# ─────────────────────────────────────────────────────────────
 
 @app.route("/invoices", methods=["GET"])
+@jwt_required()
 def list_invoices():
-    invoices = get_all_invoices()
-    return success([inv.to_dict() for inv in invoices])
+    user_id = int(get_jwt_identity())
+    invoices = get_invoices_for_user(user_id)
+    # Recalculate live values
+    results = []
+    for inv_data in invoices:
+        try:
+            inv = Invoice(
+                seller_name=inv_data["seller_name"],
+                buyer_name=inv_data["buyer_name"],
+                invoice_no=inv_data["invoice_no"],
+                invoice_date=inv_data["invoice_date"],
+                amount=inv_data["amount"],
+                udyam_id=inv_data.get("udyam_id", ""),
+                buyer_contact=inv_data.get("buyer_contact", ""),
+                buyer_gstin=inv_data.get("buyer_gstin", ""),
+            )
+            inv.id = inv_data["id"]
+            if inv_data["paid"]:
+                inv.paid = True
+                inv.paid_date = inv_data.get("paid_date")
+            results.append(inv.to_dict())
+        except Exception:
+            results.append(inv_data)
+    return success(results)
 
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 4 — Get Single Invoice
-#  GET /invoices/<invoice_id>
-#  Called by Dashboard to load one invoice's full detail.
-#
-#  Example: GET /invoices/A3B7C2D1
-# ─────────────────────────────────────────────────────────────
 
 @app.route("/invoices/<invoice_id>", methods=["GET"])
+@jwt_required()
 def get_one(invoice_id):
-    invoice = get_invoice(invoice_id.upper())
-    if not invoice:
+    user_id = int(get_jwt_identity())
+    inv = get_invoice_by_id(invoice_id.upper(), user_id)
+    if not inv:
         return error(f"Invoice '{invoice_id}' not found", status=404)
-    return success(invoice.to_dict())
+    return success(inv)
 
 
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 5 — Mark Invoice as Paid  ← THE MOST IMPORTANT ROUTE
-#  POST /invoices/<invoice_id>/pay
-#  Called when the seller presses "Mark as Paid" in Person D's UI.
-#  Freezes interest, stops all further notices (tells Person C to stop).
-#
-#  Request body (JSON):
-#  {
-#    "paid_amount": 505342   ← the actual amount the buyer sent
-#  }
-# ─────────────────────────────────────────────────────────────
 @app.route("/invoices/<invoice_id>/pay", methods=["POST"])
+@jwt_required()
 def pay_invoice(invoice_id):
-    # Parse JSON safely
-    body = request.get_json(silent=True) or {}
+    user_id = int(get_jwt_identity())
+    inv = get_invoice_by_id(invoice_id.upper(), user_id)
+    if not inv:
+        return error(f"Invoice '{invoice_id}' not found", status=404)
+    if inv["paid"]:
+        return error("Already marked as paid", status=400)
 
-    # IMPORTANT: invoice_id is the INTERNAL id (e.g. E56B8CF1)
-    invoice_key = invoice_id.upper()
-    invoice = get_invoice(invoice_key)
+    mark_invoice_paid_db(invoice_id.upper(), user_id, datetime.now().isoformat())
+    return success({"message": "Payment confirmed. All notices stopped."})
 
-    if not invoice:
+
+# ─────────────────────────────────────────────
+#  SEND NOTICE (manual trigger)
+# ─────────────────────────────────────────────
+
+@app.route("/invoices/<invoice_id>/send-notice", methods=["POST"])
+@jwt_required()
+def send_notice(invoice_id):
+    """Manually send a legal notice for an invoice (email and/or whatsapp)."""
+    from notifier import dispatch_notice
+
+    user_id = int(get_jwt_identity())
+    body    = request.get_json() or {}
+
+    inv = get_invoice_by_id(invoice_id.upper(), user_id)
+    if not inv:
+        return error(f"Invoice '{invoice_id}' not found", status=404)
+    if inv.get("paid"):
+        return error("Cannot send notice for a paid invoice", status=400)
+
+    # Determine template based on overdue days, or allow override
+    template_no = body.get("template_no")
+    channels    = body.get("channels", ["email"])  # default: email only
+
+    if not template_no:
+        # Auto-pick template from days overdue
+        try:
+            from invoice_engine import Invoice
+            i_obj = Invoice(
+                seller_name=inv["seller_name"], buyer_name=inv["buyer_name"],
+                invoice_no=inv["invoice_no"],   invoice_date=inv["invoice_date"],
+                amount=inv["amount"],
+            )
+            days_overdue = i_obj.days_overdue
+        except Exception:
+            days_overdue = 0
+
+        if days_overdue >= 22:
+            template_no = 3
+        elif days_overdue >= 15:
+            template_no = 2
+        else:
+            template_no = 1
+
+    # Build a rich invoice dict with calculated values for templates
+    try:
+        from invoice_engine import Invoice, calculate
+        i_obj = Invoice(
+            seller_name=inv["seller_name"],  buyer_name=inv["buyer_name"],
+            invoice_no=inv["invoice_no"],    invoice_date=inv["invoice_date"],
+            amount=float(inv["amount"]),
+            udyam_id=inv.get("udyam_id",""), buyer_contact=inv.get("buyer_contact",""),
+            buyer_gstin=inv.get("buyer_gstin",""),
+        )
+        i_obj.id = inv["id"]
+        calc_invoice = calculate(i_obj)
+        invoice_dict = calc_invoice.to_dict()
+    except Exception:
+        invoice_dict = inv
+
+    # Dispatch
+    results = dispatch_notice(invoice_dict, template_no, channels)
+
+    # Log each channel result to DB
+    sent_to = invoice_dict.get("buyer_contact", "unknown")
+    for channel, result in results.items():
+        status_str = "sent" if result.get("success") else "failed"
+        error_msg  = result.get("error") if not result.get("success") else None
+        log_notice(
+            invoice_id=inv["id"],
+            user_id=user_id,
+            notice_type=channel,
+            template_no=template_no,
+            sent_to=sent_to,
+            status=status_str,
+            error_msg=error_msg,
+        )
+
+    print(f"📬 Notice [{user_id}] Invoice {invoice_id} | Template {template_no} | {results}")
+    return success({
+        "template_no": template_no,
+        "channels":    channels,
+        "results":     results,
+    })
+
+
+# ─────────────────────────────────────────────
+#  GET NOTICES for an invoice
+# ─────────────────────────────────────────────
+
+@app.route("/invoices/<invoice_id>/notices", methods=["GET"])
+@jwt_required()
+def invoice_notices(invoice_id):
+    """Get all notices sent for a specific invoice."""
+    user_id  = int(get_jwt_identity())
+    inv = get_invoice_by_id(invoice_id.upper(), user_id)
+    if not inv:
         return error(f"Invoice '{invoice_id}' not found", status=404)
 
-    if invoice.paid:
-        return error("This invoice is already marked as paid", status=400)
+    notices = get_notices(invoice_id.upper(), user_id)
+    return success({"notices": notices})
 
-    # Determine paid amount
+
+# ─────────────────────────────────────────────
+#  EXPORT CASE PDF
+# ─────────────────────────────────────────────
+
+@app.route("/invoices/<invoice_id>/export-pdf", methods=["GET"])
+@jwt_required()
+def export_pdf(invoice_id):
+    """Generate and stream the legal case PDF bundle."""
+    from flask import Response
+    from pdf_generator import generate_case_pdf
+
+    user_id = int(get_jwt_identity())
+    inv = get_invoice_by_id(invoice_id.upper(), user_id)
+    if not inv:
+        return error(f"Invoice '{invoice_id}' not found", status=404)
+
+    # Enrich with calculated values
     try:
-        paid_amount = body.get("paid_amount")
-        if paid_amount is None:
-            paid_amount = invoice.total_due
-        else:
-            paid_amount = float(paid_amount)
-
-        if paid_amount <= 0:
-            raise ValueError
+        from invoice_engine import Invoice, calculate
+        i_obj = Invoice(
+            seller_name=inv["seller_name"],  buyer_name=inv["buyer_name"],
+            invoice_no=inv["invoice_no"],    invoice_date=inv["invoice_date"],
+            amount=float(inv["amount"]),
+            udyam_id=inv.get("udyam_id",""), buyer_contact=inv.get("buyer_contact",""),
+            buyer_gstin=inv.get("buyer_gstin",""),
+        )
+        i_obj.id = inv["id"]
+        if inv.get("paid"):
+            i_obj.paid = True
+        calc_invoice = calculate(i_obj)
+        invoice_dict = calc_invoice.to_dict()
     except Exception:
-        return error("Invalid paid_amount", status=400)
+        invoice_dict = inv
 
-    # Mark invoice as paid
-    updated = mark_paid(invoice_key, paid_amount)
+    notices = get_notices(invoice_id.upper(), user_id)
+    pdf_bytes = generate_case_pdf(invoice_dict, notices)
 
-    return success(
-        {
-            **updated.to_dict(),
-            "message": f"Payment of ₹{paid_amount:,.2f} confirmed. All notices stopped."
+    filename = f"DigitalVakeel_Case_{invoice_id.upper()}.pdf"
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(len(pdf_bytes)),
         },
-        status=200
     )
 
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 6 — Get Triggers for an Invoice
-#  GET /invoices/<invoice_id>/triggers
-#  Person C calls this to know which messages to send today.
-#  If triggers list is non-empty, C fires the corresponding templates.
-# ─────────────────────────────────────────────────────────────
-
-@app.route("/invoices/<invoice_id>/triggers", methods=["GET"])
-def get_triggers(invoice_id):
-    invoice = get_invoice(invoice_id.upper())
-    if not invoice:
-        return error(f"Invoice '{invoice_id}' not found", status=404)
-
-    triggers = check_triggers(invoice)
-    return success({
-        "invoice_id":    invoice.id,
-        "days_overdue":  invoice.days_overdue,
-        "status":        invoice.status,
-        "triggers":      triggers,
-        "has_triggers":  len(triggers) > 0,
-    })
 
 
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 7 — Get All Pending Triggers (for Person C's scheduler)
-#  GET /triggers/today
-#  Person C calls this ONCE per day to get all invoices
-#  that need a message sent today.
-# ─────────────────────────────────────────────────────────────
 
-@app.route("/triggers/today", methods=["GET"])
-def todays_triggers():
-    all_invoices    = get_all_invoices()
-    pending         = []
-
-    for inv in all_invoices:
-        triggers = check_triggers(inv)
-        if triggers:
-            pending.append({
-                "invoice":  inv.to_dict(),
-                "triggers": triggers,
-            })
-
-    return success({
-        "date":          datetime.now().date().isoformat(),
-        "total_checked": len(all_invoices),
-        "total_pending": len(pending),
-        "items":         pending,
-    })
-
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 8 — Log a Sent Notification
-#  POST /invoices/<invoice_id>/notices
-#  After Person C sends a WhatsApp/email, it calls this to
-#  record it on the invoice. Person D shows these in the UI.
-#
-#  Request body:
-#  {
-#    "template_no": 1,
-#    "channel":     "whatsapp",
-#    "sent_to":     "finance@megaretail.com",
-#    "sent_at":     "2025-03-18T10:30:00"
-#  }
-# ─────────────────────────────────────────────────────────────
-
-@app.route("/invoices/<invoice_id>/notices", methods=["POST"])
-def log_notice(invoice_id):
-    body    = request.get_json() or {}
-    invoice = get_invoice(invoice_id.upper())
-
-    if not invoice:
-        return error(f"Invoice '{invoice_id}' not found", status=404)
-
-    notice = {
-        "template_no": body.get("template_no"),
-        "channel":     body.get("channel"),
-        "sent_to":     body.get("sent_to"),
-        "sent_at":     body.get("sent_at", datetime.now().isoformat()),
-    }
-
-    # Load raw DB record and append notice
-    from invoice_engine import _load_db, _save_db
-    db = _load_db()
-    if invoice_id.upper() in db:
-        db[invoice_id.upper()]["notices_sent"].append(notice)
-        _save_db(db)
-
-    return success({"logged": True, "notice": notice})
-
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 9 — Dashboard Summary Stats
-#  GET /summary
-#  Called by Person D's Dashboard header to show aggregate numbers.
-# ─────────────────────────────────────────────────────────────
-
-@app.route("/summary", methods=["GET"])
-def summary():
-    invoices = get_all_invoices()
-
-    total_principal = sum(i.amount         for i in invoices)
-    total_interest  = sum(i.interest_accrued for i in invoices)
-    total_due       = sum(i.total_due       for i in invoices if not i.paid)
-    overdue_count   = sum(1 for i in invoices if i.days_overdue > 0 and not i.paid)
-    paid_count      = sum(1 for i in invoices if i.paid)
-
-    return success({
-        "total_invoices":    len(invoices),
-        "overdue_count":     overdue_count,
-        "paid_count":        paid_count,
-        "total_principal":   round(total_principal, 2),
-        "total_interest":    round(total_interest, 2),
-        "total_outstanding": round(total_due, 2),
-    })
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 10 — OCR Extract Invoice from PDF
-#  POST /ocr/extract
-#  Receives PDF, calls Person C's OCR API, returns extracted data
-# ─────────────────────────────────────────────────────────────
-
-@app.route("/ocr/extract", methods=["POST"])
-def ocr_extract():
-    if "file" not in request.files:
-        return error("No file uploaded", status=400)
-    
-    file = request.files["file"]
-    if file.filename == "":
-        return error("Empty filename", status=400)
-    
-    # Forward PDF to Person C's OCR API
-    try:
-        files = {"file": (file.filename, file.stream, file.content_type)}
-        ocr_response = requests.post("http://localhost:8000/extract", files=files)
-        ocr_data = ocr_response.json()
-        print("DEBUG - OCR raw response:", ocr_data)
-        
-        # Get the fields dict from OCR response
-        fields = ocr_data.get("fields", {})
-
-        # Extract and clean values (OCR includes labels, we need just values)
-        def clean_value(text):
-            """Remove label prefixes like 'Invoice No: ' from values"""
-            if not text:
-                return ""
-            # Split by colon and take the last part
-            if ":" in text:
-                return text.split(":", 1)[1].strip()
-            return text.strip()
-
-        # Extract amount number from text like "Rs. 1,72,515.00"
-        def extract_amount(text):
-            if not text:
-                return 0
-            # Remove everything except digits and decimal point
-            import re
-            numbers = re.findall(r'[\d,]+\.?\d*', text)
-            if numbers:
-                return float(numbers[0].replace(',', ''))
-            return 0
-        def convert_date(text):
-            """Convert DD-MM-YYYY to YYYY-MM-DD"""
-            cleaned = clean_value(text)
-            if not cleaned:
-                return ""
-            try:
-                # Parse DD-MM-YYYY
-                from datetime import datetime
-                date_obj = datetime.strptime(cleaned, "%d-%m-%Y")
-                # Return as YYYY-MM-DD
-                return date_obj.strftime("%Y-%m-%d")
-            except:
-                return cleaned  # Return as-is if parsing fails
-        # Map OCR fields to our invoice format
-        mapped = {
-            "seller_name":   clean_value(fields.get("SELLER_NAME", "")),
-            "buyer_name":    clean_value(fields.get("BUYER_NAME", "")),
-            "invoice_no":    clean_value(fields.get("INVOICE_NUMBER", "")),
-            "invoice_date":  convert_date(fields.get("INVOICE_DATE", "")),
-            "amount":        extract_amount(fields.get("INVOICE_AMOUNT", "")),
-            "udyam_id":      clean_value(fields.get("UDYAM_ID", "")),
-            "buyer_gstin":   clean_value(fields.get("BUYER_GSTIN", "")),
-            "buyer_contact": clean_value(fields.get("BUYER_EMAIL", "")),
-        }
-        
-        return success(mapped)
-        
-    except Exception as e:
-        return error(f"OCR extraction failed: {str(e)}", status=500)
-
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 11 — RAG Legal Assistant Chat
-#  POST /chat
-#  The React chat widget sends questions here.
-#  Returns AI-generated answers grounded in legal documents.
-#
-#  Request body:
-#  { "question": "What is Section 16?" }
-#
-#  Response:
-#  {
-#    "ok": true,
-#    "data": {
-#      "answer": "Section 16 of the MSMED Act...",
-#      "sources": [{"document": "msmed_act.txt", "snippet": "..."}],
-#      "success": true
-#    }
-#  }
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════
+#  CHAT ROUTES (protected, with history)
+# ═════════════════════════════════════════════
 
 @app.route("/chat", methods=["POST"])
+@jwt_required()
 def chat():
+    user_id = int(get_jwt_identity())
     body = request.get_json()
+
     if not body or not body.get("question"):
         return error("Please provide a 'question' field", status=400)
 
@@ -540,22 +469,33 @@ def chat():
         return error("Question is too long (max 1000 chars)", status=400)
 
     if not rag_engine or not rag_engine.is_ready():
-        return error(
-            "Legal assistant is not available. "
-            "Please set GEMINI_API_KEY and run build_vectorstore.py first.",
-            status=503,
-        )
+        return error("Legal assistant is not available.", status=503)
 
-    print(f"💬 Chat question: {question}")
+    print(f"💬 Chat [{user_id}]: {question}")
     result = rag_engine.ask(question)
+
+    # Save to chat history
+    if result.get("success"):
+        save_chat_message(user_id, question, result["answer"], result.get("sources", []))
+
     return success(result)
 
 
-# ─────────────────────────────────────────────────────────────
-#  ROUTE 12 — Chat Suggested Questions
-#  GET /chat/suggestions
-#  Returns a list of suggested questions for the chat widget.
-# ─────────────────────────────────────────────────────────────
+@app.route("/chat/history", methods=["GET"])
+@jwt_required()
+def chat_history_route():
+    user_id = int(get_jwt_identity())
+    history = get_chat_history(user_id, limit=50)
+    return success({"history": history})
+
+
+@app.route("/chat/history", methods=["DELETE"])
+@jwt_required()
+def clear_history_route():
+    user_id = int(get_jwt_identity())
+    clear_chat_history(user_id)
+    return success({"message": "Chat history cleared"})
+
 
 @app.route("/chat/suggestions", methods=["GET"])
 def chat_suggestions():
@@ -563,29 +503,107 @@ def chat_suggestions():
     return success({"suggestions": SUGGESTED_QUESTIONS})
 
 
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════
+#  OCR EXTRACT
+# ═════════════════════════════════════════════
+
+@app.route("/ocr/extract", methods=["POST"])
+@jwt_required()
+def ocr_extract():
+    if "file" not in request.files:
+        return error("No file uploaded", status=400)
+
+    file = request.files["file"]
+    if file.filename == "":
+        return error("Empty filename", status=400)
+
+    try:
+        files = {"file": (file.filename, file.stream, file.content_type)}
+        ocr_response = requests.post(OCR_SERVICE_URL, files=files)
+        ocr_data = ocr_response.json()
+        fields = ocr_data.get("fields", {})
+
+        def clean_value(text):
+            if not text:
+                return ""
+            if ":" in text:
+                return text.split(":", 1)[1].strip()
+            return text.strip()
+
+        def extract_amount(text):
+            if not text:
+                return 0
+            numbers = re.findall(r'[\d,]+\.?\d*', text)
+            if numbers:
+                return float(numbers[0].replace(',', ''))
+            return 0
+
+        def convert_date(text):
+            cleaned = clean_value(text)
+            if not cleaned:
+                return ""
+            try:
+                return datetime.strptime(cleaned, "%d-%m-%Y").strftime("%Y-%m-%d")
+            except Exception:
+                return cleaned
+
+        mapped = {
+            "seller_name": clean_value(fields.get("SELLER_NAME", "")),
+            "buyer_name": clean_value(fields.get("BUYER_NAME", "")),
+            "invoice_no": clean_value(fields.get("INVOICE_NUMBER", "")),
+            "invoice_date": convert_date(fields.get("INVOICE_DATE", "")),
+            "amount": extract_amount(fields.get("INVOICE_AMOUNT", "")),
+            "udyam_id": clean_value(fields.get("UDYAM_ID", "")),
+            "buyer_gstin": clean_value(fields.get("BUYER_GSTIN", "")),
+            "buyer_contact": clean_value(fields.get("BUYER_EMAIL", "")),
+        }
+
+        return success(mapped)
+
+    except Exception as e:
+        return error(f"OCR extraction failed: {str(e)}", status=500)
+
+
+# ═════════════════════════════════════════════
+#  SUMMARY (protected)
+# ═════════════════════════════════════════════
+
+@app.route("/summary", methods=["GET"])
+@jwt_required()
+def summary():
+    user_id = int(get_jwt_identity())
+    invoices = get_invoices_for_user(user_id)
+    total = len(invoices)
+    overdue = sum(1 for i in invoices if not i["paid"])
+    paid = sum(1 for i in invoices if i["paid"])
+    total_amount = sum(i["amount"] for i in invoices)
+    return success({
+        "total_invoices": total,
+        "overdue_count": overdue,
+        "paid_count": paid,
+        "total_principal": round(total_amount, 2),
+    })
+
+
+# ═════════════════════════════════════════════
 #  START SERVER
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════
 
 if __name__ == "__main__":
-
     print("\n" + "=" * 50)
-    print("  Digital-Vakeel API Server")
+    print("  Digital-Vakeel API Server v2.0")
     print("  Running at: http://localhost:5000")
-    print("  React app should be at: http://localhost:3000")
     print("=" * 50)
-    print("\n  Available routes:")
-    print("  GET  /                              → health check")
+    print("\n  Auth routes:")
+    print("  POST /auth/signup                   → register")
+    print("  POST /auth/login                    → login")
+    print("  GET  /auth/me                       → current user")
+    print("\n  Protected routes (JWT required):")
     print("  POST /invoices                      → create invoice")
-    print("  GET  /invoices                      → list all invoices")
-    print("  GET  /invoices/<id>                 → get one invoice")
-    print("  POST /invoices/<id>/pay             → mark as paid")
-    print("  GET  /invoices/<id>/triggers        → check today's triggers")
-    print("  GET  /triggers/today                → all pending triggers")
-    print("  POST /invoices/<id>/notices         → log a sent notice")
-    print("  GET  /summary                       → dashboard stats")
-    print("  POST /ocr/extract                   → extract invoice from PDF")
+    print("  GET  /invoices                      → list user invoices")
     print("  POST /chat                          → RAG legal assistant")
-    print("  GET  /chat/suggestions              → suggested questions")
+    print("  GET  /chat/history                  → chat history")
+    print("  DELETE /chat/history                → clear history")
+    print("  POST /ocr/extract                   → OCR extract")
     print("\n  Press CTRL+C to stop.\n")
     app.run(debug=True, port=5000)

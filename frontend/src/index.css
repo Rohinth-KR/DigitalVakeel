@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -10,4 +12,41 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Sovereign Intelligence Auth Animations */
+@keyframes float1 {
+  0%   { transform: translate(0px, 0px) scale(1); }
+  33%  { transform: translate(30px, -50px) scale(1.1); }
+  66%  { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+@keyframes float2 {
+  0%   { transform: translate(0px, 0px) scale(1); }
+  33%  { transform: translate(-50px, 30px) scale(0.85); }
+  66%  { transform: translate(20px, -20px) scale(1.15); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+@keyframes rotateglow {
+  to { transform: rotate(360deg); }
+}
+
+.auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.dash-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.dash-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06) !important;
+}
+
+.primary-btn {
+  transition: all 0.2s ease !important;
+}
+.primary-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0,201,184,0.4) !important;
 }

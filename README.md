@@ -1,240 +1,257 @@
-# ⚖️ Digital-Vakeel AI
+# ⚖️ Digital-Vakeel AI v2.0
 
 **Automated MSME Payment Enforcement System**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![React 18+](https://img.shields.io/badge/react-18+-61dafb.svg)](https://reactjs.org/)
-[![Flask 3.0+](https://img.shields.io/badge/flask-3.0+-black.svg)](https://flask.palletsprojects.com/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![React 19](https://img.shields.io/badge/react-19-61dafb.svg)](https://reactjs.org/)
+[![Flask 3.0](https://img.shields.io/badge/flask-3.0-black.svg)](https://flask.palletsprojects.com/)
+[![Supabase](https://img.shields.io/badge/database-supabase-3ECF8E.svg)](https://supabase.com/)
 
-> Empowering India's 63 million MSMEs to recover ₹10.7 Trillion in delayed payments through AI-powered legal automation.
+> Empowering India's 63 million MSMEs to recover ₹10.7 Trillion in delayed payments through AI-powered legal automation — from invoice upload to court-ready case file, in minutes.
 
 ---
 
 ## 🎯 Problem Statement
 
-India's MSME sector faces a massive **₹10.7 Trillion liquidity crisis** due to delayed payments. Small suppliers wait months for dues from large buyers, violating the 45-day statutory limit under the **MSMED Act 2006**. The primary barrier is the **Accessibility Gap** — small business owners cannot afford corporate lawyers or navigate complex government portals.
+India's MSME sector faces a massive **₹10.7 Trillion liquidity crisis** due to delayed payments. Small suppliers wait months for dues from large buyers, violating the **45-day statutory limit** under the MSMED Act 2006 (Section 15). The barrier? MSMEs can't afford lawyers or navigate complex legal portals.
 
-**Digital-Vakeel solves this by automating the entire debt recovery process.**
-
----
-
-## 🚀 Features
-
-### ✅ Core Capabilities
-- **🧾 Intelligent OCR Invoice Extraction** — Upload PDF invoices, auto-extract 25+ fields with 95%+ accuracy
-- **⚡ Automated Interest Calculation** — Real-time 3× RBI compound interest tracking per MSMED Act Section 16
-- **📊 Live Dashboard** — Monitor invoice status, days overdue, and total amounts due
-- **📅 Timeline Visualization** — Day-by-day legal case progression from Day 0 → Day 68
-- **💳 Payment Tracking** — Mark invoices as paid to freeze interest and stop notices
-- **📬 Notification System** — Automated WhatsApp/Email notices on Day 46, 60, and 67 (coming soon)
-- **🤖 RAG Legal Assistant Chatbot** — Interactive AI Q&A trained on MSMED laws, RBI guidelines, and Samadhaan portal procedures
-
-### 🔐 Technical Highlights
-- **AI-Powered Legal Assistant** — RAG chatbot built with Google Gemini 2.5 and FAISS vector search
-- **Zero API Costs** — Open-source stack with DocTR for document processing
-- **Multi-language Support** — Tamil, Hindi, English invoice recognition
-- **Legal Compliance** — Built on MSMED Act 2006 Sections 15, 16, 18 statutory framework
+**Digital-Vakeel closes this gap — from invoice upload to legal enforcement, fully automated.**
 
 ---
 
-## 🤖 Meet Your AI Legal Assistant
+## ✅ Features (v2.0 — Current)
 
-Digital-Vakeel goes beyond just tracking invoices—it acts as your personal, highly knowledgeable legal counsel. Powered by **Retrieval-Augmented Generation (RAG)**, our integrated chatbot is designed to provide instant, precise legal guidance specifically tailored to Indian MSMEs. 
+### 🔐 Authentication & Multi-User
+- Secure JWT-based login/signup (bcrypt password hashing)
+- Per-user data isolation via Supabase Row Level Security
+- Each user manages their own invoice portfolio independently
 
-### 🌟 Why It's Game-Changing
-- **🧠 Powered by Google Gemini 2.5 Flash**: Yields lightning-fast, high-reasoning legal analysis.
-- **📚 Grounded in Absolute Truth**: By utilizing a **FAISS Vector Database**, the AI constructs answers *strictly* from official sources (the MSMED Act 2006, RBI master directions, and official Samadhaan Portal guidelines). Absolutely no hallucinations.
-- **💬 Conversational & Empathetic**: Ask complex legal questions in plain English. Example: *"What happens if a buyer delays payment past 90 days?"* or *"How is compound interest calculated if I don't have a written contract?"* The AI responds with structured, actionable advice.
-- **✨ Unlocks Legal Access**: What typically costs thousands of rupees in lawyer consultation fees is now available to the smallest business owner, for free, directly inside their dashboard.
+### 🧾 AI Invoice Management
+- **OCR Upload** — Drag-and-drop PDF invoice extraction via DocTR (95%+ accuracy)
+- **Multi-Invoice Dashboard** — Tabular view of all invoices with live status
+- **Invoice Selection** — Click any invoice to open its dedicated enforcement dashboard
+- **Manual Entry** — Step-by-step 3-panel form as fallback
+
+### 📊 Live Enforcement Dashboard
+- **4 Stat Cards** — Current Status, Principal Amount, Interest Accrued, Total Due
+- **Real-time interest** — Compound interest at 3× RBI rate (19.5% p.a.) per Section 16
+- **Status Engine** — ACTIVE → DUE SOON → DUE TODAY → OVERDUE → LEGAL NOTICE SENT → ESCALATION → PAID
+- **Mark as Paid** — Freezes interest, stops all notices
+
+### 📧 Legal Notice Engine ("Close the Loop")
+- **3 legal notice templates** — Soft Reminder (Day 46), Formal Legal Notice (Day 60), Final Escalation (Day 67)
+- **Email dispatch** via Resend API with rich HTML templates
+- **Manual trigger** — Send notice on demand from the dashboard
+- **Template selector** — Auto-pick by days overdue or manually override (1/2/3)
+- **Notice history** — Full log of every notice sent (type, template, timestamp, status)
+
+### 🗂️ 1-Click Legal Case PDF Export
+- Professional **6-section case bundle** generated by ReportLab:
+  - Cover Page (invoice ID, parties, status, timestamp)
+  - Section 1: Parties to the Dispute
+  - Section 2: Invoice Details table
+  - Section 3: Statutory Interest Calculation (MSMED Act formula)
+  - Section 4: Evidence of Notices Sent (timestamped log)
+  - Section 5: Legal Basis (Sections 15, 16, 18 summary)
+  - Section 6: Declaration footer
+- Streamed directly as a browser download (`DigitalVakeel_Case_<ID>.pdf`)
+- Suitable for submission to **MSME Samadhaan portal** or Facilitation Council
+
+### 🤖 RAG Legal Assistant Chatbot
+- **FAISS vector store** built on official MSMED Act 2006, RBI guidelines, Samadhaan procedures
+- **Groq LLaMA 70B** for legal reasoning (free tier)
+- Persistent **chat history** per user (stored in Supabase)
+- Suggested questions, clear history button
+- Context-aware conversation (previous messages included in context window)
+
+### 📋 In-App Legal Reference (Sidebar)
+- **MSMED Act 2006 Accordion** — Expandable Sections 15, 16, 17, 18, 19 with legal text + key insights. Links to official Legislative Dept. PDF
+- **Samadhaan Portal Guide** — Step-by-step interactive filing checklist with progress bar. Links directly to samadhaan.msme.gov.in
+
+### 🎨 UI/UX
+- Dark sidebar + white content area premium design
+- Animated micro-interactions, gradient stat cards
+- Slide-in modal panels for legal reference
+- Responsive layouts with sticky headers
 
 ---
 
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Digital-Vakeel                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────┐      ┌──────────────┐      ┌──────────────┐  │
-│  │   React     │ ───► │    Flask     │ ───► │   Invoice    │  │
-│  │   Frontend  │      │   Backend    │      │   Engine     │  │
-│  │  (Port 3000)│      │  (Port 5000) │      │   (Logic)    │  │
-│  └─────────────┘      └──────────────┘      └──────────────┘  │
-│         │                      │                                │
-│         │                      │                                │
-│         ▼                      ▼                                │
-│  ┌─────────────┐      ┌──────────────┐                        │
-│  │   OCR API   │      │   JSON DB    │                        │
-│  │  (Port 8000)│      │ (File Store) │                        │
-│  └─────────────┘      └──────────────┘                        │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────┐                                               │
-│  │   DocTR     │                                               │
-│  │  (Local AI) │                                               │
-│  └─────────────┘                                               │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Digital-Vakeel v2.0                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────┐     ┌───────────────────┐     ┌────────────────┐  │
+│  │   React 19   │────▶│   Flask Backend   │────▶│   Supabase     │  │
+│  │  (Port 3000) │     │   (Port 5000)     │     │  (PostgreSQL)  │  │
+│  └──────────────┘     └────────┬──────────┘     └────────────────┘  │
+│         │                      │                                      │
+│         │            ┌─────────┼──────────────────────┐              │
+│         │            │         │                       │              │
+│         │      ┌─────▼────┐ ┌──▼──────────┐  ┌───────▼────────┐   │
+│         │      │  RAG     │ │  Notifier   │  │  PDF Generator │   │
+│         │      │  Engine  │ │  (Resend)   │  │  (ReportLab)   │   │
+│         │      │  (Groq)  │ └─────────────┘  └────────────────┘   │
+│         │      └──────────┘                                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐                                                     │
+│  │  OCR Service │  DocTR + PyMuPDF                                    │
+│  │  (Port 8000) │  FastAPI                                            │
+│  └──────────────┘                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Technology Stack
 
 | Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | React 18, Outfit Font | User interface, invoice upload, dashboard, AI chat widget |
-| **Backend API** | Flask 3.0, Python 3.8+ | RESTful API, business logic orchestration |
-| **Core Logic** | Python dataclasses, datetime | Invoice tracking, interest calculation, status engine |
-| **OCR Engine** | DocTR, PyMuPDF | PDF text extraction, field recognition |
-| **Database** | JSON file storage | Invoice persistence (demo/hackathon) |
-| **AI Models** | Google Gemini 2.5, FAISS, LangChain | RAG legal assistant providing contextual Q&A |
+|---|---|---|
+| **Frontend** | React 19, Vanilla CSS, Inter Font | SPA dashboard, invoice upload, chatbot, legal reference modals |
+| **Backend API** | Flask 3.0, Flask-JWT-Extended | RESTful API (25+ routes), JWT auth, business logic |
+| **Database** | Supabase (PostgreSQL) | Users, invoices, notices, chat history — with RLS |
+| **OCR Engine** | DocTR, PyMuPDF, FastAPI | PDF invoice extraction, field recognition |
+| **Legal AI (RAG)** | Groq LLaMA 70B, LangChain, FAISS | Context-aware legal Q&A from official documents |
+| **Notifications** | Resend API (Email), Twilio (WhatsApp ready) | Legal notice dispatch with HTML templates |
+| **PDF Export** | ReportLab | Court-ready case file PDF generation |
+| **Auth** | JWT + bcrypt | Secure multi-user authentication |
 
 ---
 
 ## 📦 Installation & Setup
 
 ### Prerequisites
-
-- **Python 3.8+** with pip
-- **Node.js 16+** with npm
+- **Python 3.10+** with pip
+- **Node.js 18+** with npm
 - **Git**
-- **Windows / macOS / Linux**
+- **Supabase account** (free tier) — https://supabase.com
 
 ---
 
-### 🔧 Backend Setup
+### 1️⃣ Clone the Repository
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Rohinth-KR/DigitalVakeel.git
 cd DigitalVakeel
+```
 
-# 2. Setup Backend
+---
+
+### 2️⃣ Supabase Database Setup
+
+1. Create a project at https://supabase.com
+2. In the **SQL Editor**, run the following migration:
+
+```sql
+-- Users table
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Invoices table (per-user)
+CREATE TABLE invoices (
+  id TEXT PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  invoice_no TEXT, invoice_date TEXT, seller_name TEXT, buyer_name TEXT,
+  amount NUMERIC DEFAULT 0, paid BOOLEAN DEFAULT FALSE, paid_date TEXT,
+  buyer_gstin TEXT, buyer_contact TEXT, udyam_id TEXT,
+  notices JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Notices log table
+CREATE TABLE notices (
+  id BIGSERIAL PRIMARY KEY,
+  invoice_id TEXT REFERENCES invoices(id) ON DELETE CASCADE,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT,         -- 'email' | 'whatsapp'
+  template_no INT,   -- 1 | 2 | 3
+  sent_to TEXT,
+  sent_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT,       -- 'sent' | 'failed'
+  error_msg TEXT
+);
+
+-- Chat history
+CREATE TABLE chat_history (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  question TEXT, answer TEXT,
+  sources JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+3. Copy your **Project URL** and **anon key** from Settings → API
+
+---
+
+### 3️⃣ Backend Setup
+
+```bash
 cd backend
 
-# 3. Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # macOS/Linux
 
-# 4. Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# 5. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 6. Build the FAISS Vector Store for the RAG Legal Chatbot
+# Set environment variables (create a .env file or set in shell)
 # Windows:
-set GEMINI_API_KEY=your-api-key-here
-python build_vectorstore.py
-# macOS/Linux:
-export GEMINI_API_KEY=your-api-key-here
+set SUPABASE_URL=https://your-project.supabase.co
+set SUPABASE_KEY=your-anon-key
+set RESEND_API_KEY=re_your_resend_key
+set FROM_EMAIL=notices@yourdomain.com
+set JWT_SECRET=your-secret-key-here
+set GROQ_API_KEY=your-groq-key         # from console.groq.com (free)
+
+# Build the RAG vector store (one-time, ~2 minutes)
 python build_vectorstore.py
 
-# 7. Test the invoice engine
-python invoice_engine.py
-# Should output: "All tests passed! Engine is ready."
-
-# 8. Start Flask API server
+# Start the Flask API server
 python app.py
-# Server starts at: http://localhost:5000
+# → Running on http://localhost:5000
 ```
-
-**Backend is now running ✅**
 
 ---
 
-### 🎨 Frontend Setup
-
-**Open a NEW terminal** (keep backend running in the first terminal)
+### 4️⃣ OCR Service Setup (separate terminal)
 
 ```bash
-# 1. Navigate to frontend folder
-cd DigitalVakeel/frontend
+cd form-extractor-main
 
-# 2. Install dependencies
+python -m venv venv
+venv\Scripts\activate          # Windows
+
+pip install -r requirements.txt
+
+python api.py
+# → Running on http://localhost:8000
+```
+
+---
+
+### 5️⃣ Frontend Setup (separate terminal)
+
+```bash
+cd frontend
+
 npm install
 
-# 3. Add Google Font (for styling)
-# Open: public/index.html
-# Add inside  section:
-
-
-# 4. Start React development server
 npm start
-# Opens browser at: http://localhost:3000
+# → Opens http://localhost:3000
 ```
 
-**Frontend is now running ✅**
-
----
-
-### 🧾 OCR Service Setup
-
-**Open a THIRD terminal** (keep backend + frontend running)
-
-```bash
-# 1. Navigate to OCR folder
-cd DigitalVakeel/form-extractor-main
-
-# 2. Create virtual environment
-python -m venv venv
-
-# 3. Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# 4. Install dependencies
-pip install -r requirements.txt
-
-# 5. Start OCR API server
-python api.py
-# Server starts at: http://localhost:8000
-```
-
-**OCR is now running ✅**
-
----
-
-## 🎬 Usage Guide
-
-### 1️⃣ Upload Invoice with OCR
-
-1. Open browser: `http://localhost:3000`
-2. Click **"Upload Invoice"** in sidebar
-3. Drag & drop an invoice PDF (or click to browse)
-4. **Wait 2-3 seconds** — OCR extracts data automatically
-5. Review auto-filled form fields
-6. Edit any incorrect fields manually
-7. Click **"Continue to Review"** → **"Submit & Start Monitoring"**
-
-### 2️⃣ View Dashboard
-
-1. Click **"Dashboard"** in sidebar
-2. See 4 stat boxes:
-   - **Current Status** (ACTIVE / OVERDUE / PAID)
-   - **Principal Amount** (original invoice amount)
-   - **Interest Accrued** (calculated daily)
-   - **Total Now Due** (principal + interest)
-3. View detailed invoice info and statutory interest breakdown
-4. Check automated notices sent (WhatsApp Day 46, Email Day 60, Final Warning Day 67)
-
-### 3️⃣ Mark as Paid
-
-1. When buyer pays, click **"✅ Mark as Paid"** button
-2. Interest stops accruing immediately
-3. Status changes to **PAID** (green)
-4. All automated notices stop
-
-### 4️⃣ View Timeline
-
-1. Click **"Timeline"** in sidebar
-2. See full Day 0 → Day 68 story
-3. Click any event to expand details
-4. Understand the legal progression
+**All three services running = full system ✅**
 
 ---
 
@@ -244,243 +261,209 @@ python api.py
 DigitalVakeel/
 │
 ├── backend/                         # Flask API + Core Logic
-│   ├── invoice_engine.py            # Data model, status engine, interest calculator
-│   ├── app.py                       # Flask REST API (9 routes)
-│   ├── invoices_db.json             # Invoice storage (auto-created)
-│   └── venv/                        # Python virtual environment
+│   ├── app.py                       # 25+ REST API routes, JWT auth
+│   ├── database.py                  # Supabase client, all DB functions
+│   ├── invoice_engine.py            # Invoice model, status engine, interest calc
+│   ├── rag_engine.py                # LangChain RAG with Groq LLaMA + FAISS
+│   ├── notifier.py                  # Email (Resend) + WhatsApp (Twilio) dispatch
+│   ├── pdf_generator.py             # ReportLab case file PDF builder
+│   ├── build_vectorstore.py         # One-time FAISS vector store builder
+│   ├── knowledge_base/              # Legal documents for RAG (MSMED Act, RBI, etc.)
+│   ├── vectorstore/                 # FAISS index files (auto-generated)
+│   └── requirements.txt
 │
-├── frontend/                        # React Web App
+├── frontend/                        # React 19 SPA
 │   ├── src/
-│   │   ├── App.js                   # Main React component (all 3 screens)
-│   │   ├── api.js                   # API connector to Flask backend
-│   │   └── index.js                 # React entry point
+│   │   ├── App.js                   # All screens + components (single-file SPA)
+│   │   └── api.js                   # Typed API connector to Flask backend
 │   ├── public/
-│   │   └── index.html               # HTML template (Google Font here)
-│   └── package.json                 # NPM dependencies
+│   │   └── index.html               # HTML template
+│   └── package.json
 │
-└── form-extractor-main/             # OCR Extraction Service
-    ├── api.py                       # FastAPI OCR server
-    ├── step8_predict_pdf.py         # OCR prediction engine
-    ├── template_mapping.json        # Field coordinate mapping
-    └── msme_*.pdf                   # Sample invoice templates
+└── form-extractor-main/             # FastAPI OCR Microservice
+    ├── api.py                       # FastAPI server (POST /extract-pdf)
+    ├── step8_predict_pdf.py         # DocTR OCR prediction pipeline
+    ├── template_mapping.json        # Field coordinate mapping for invoice templates
+    └── requirements.txt
 ```
 
 ---
 
-## 🔌 API Documentation
+## 🔌 API Reference
 
 ### Base URL: `http://localhost:5000`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| **GET** | `/` | Health check |
-| **POST** | `/invoices` | Create new invoice |
-| **GET** | `/invoices` | List all invoices |
-| **GET** | `/invoices/<id>` | Get single invoice |
-| **POST** | `/invoices/<id>/pay` | Mark invoice as paid |
-| **GET** | `/invoices/<id>/triggers` | Check notification triggers |
-| **GET** | `/triggers/today` | Get all pending triggers |
-| **POST** | `/invoices/<id>/notices` | Log sent notification |
-| **GET** | `/summary` | Dashboard summary stats |
-| **POST** | `/ocr/extract` | Extract invoice from PDF |
-| **POST** | `/chat` | RAG legal assistant |
-| **GET** | `/chat/suggestions` | Suggested questions for chat |
+> All protected routes require: `Authorization: Bearer <JWT_TOKEN>`
 
-### Example: Create Invoice
+#### Auth
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/auth/signup` | ❌ | Register new user |
+| `POST` | `/auth/login` | ❌ | Login, get JWT token |
+| `GET` | `/auth/me` | ✅ | Get current user profile |
 
-```bash
-POST http://localhost:5000/invoices
-Content-Type: application/json
+#### Invoices
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/invoices` | ✅ | Create new invoice |
+| `GET` | `/invoices` | ✅ | List all invoices for current user |
+| `GET` | `/invoices/<id>` | ✅ | Get single invoice (with live calc) |
+| `POST` | `/invoices/<id>/pay` | ✅ | Mark invoice as paid |
 
-{
-  "seller_name": "Arjun Textiles",
-  "buyer_name": "Mega-Retail Corp",
-  "invoice_no": "INV-2025-101",
-  "invoice_date": "2025-02-01",
-  "amount": 500000,
-  "udyam_id": "UDYAM-TN-07-0012345",
-  "buyer_gstin": "27AABCU9603R1ZM",
-  "buyer_contact": "finance@megaretail.com"
-}
-```
+#### Notifications & PDF
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/invoices/<id>/send-notice` | ✅ | Manually send legal notice (email) |
+| `GET` | `/invoices/<id>/notices` | ✅ | Get all notices sent for invoice |
+| `GET` | `/invoices/<id>/export-pdf` | ✅ | Download legal case file PDF |
 
-**Response:**
-```json
-{
-  "ok": true,
-  "data": {
-    "id": "A3B7C2D1",
-    "status": "ACTIVE",
-    "due_date": "2025-03-18",
-    "days_until_due": 45,
-    "interest_accrued": 0.0,
-    "total_due": 500000.0
-  }
-}
-```
+#### OCR
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/ocr/extract` | ✅ | Extract fields from uploaded PDF invoice |
+
+#### Legal AI Chat
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/chat` | ✅ | Ask legal question, get RAG answer |
+| `GET` | `/chat/history` | ✅ | Get conversation history |
+| `DELETE` | `/chat/history` | ✅ | Clear chat history |
+| `GET` | `/chat/suggestions` | ❌ | Get suggested legal questions |
 
 ---
 
-## 🧮 Interest Calculation Logic
+## 🧮 Interest Calculation (MSMED Act Section 16)
 
-### Formula (MSMED Act Section 16)
+```
+RBI Bank Rate     = 6.5% p.a.
+Multiplier        = 3× (per Section 16)
+Annual Rate       = 19.5% p.a.
+Daily Rate        = 19.5% ÷ 365 = 0.05342% per day
 
-```python
-# Constants
-RBI_BANK_RATE = 0.065        # 6.5% per year
-INTEREST_MULTIPLIER = 3      # Section 16: 3× RBI rate
-ANNUAL_RATE = 0.065 × 3 = 0.195  # 19.5% per year
-DAILY_RATE = 0.195 ÷ 365 = 0.000534
-
-# Calculation
-Interest = Principal × DAILY_RATE × Days_Overdue
-Total_Due = Principal + Interest
+Interest = Principal × DailyRate × DaysOverdue
+Total    = Principal + Interest
 ```
 
-### Example: ₹5,00,000 Invoice
+### Example: Rs. 5,00,000 invoice, 90 days overdue
 
-| Days Overdue | Interest Accrued | Total Due |
-|--------------|------------------|-----------|
-| 0 (Day 0–45) | ₹0 | ₹5,00,000 |
-| 1 (Day 46) | ₹267 | ₹5,00,267 |
-| 15 (Day 60) | ₹4,007 | ₹5,04,007 |
-| 22 (Day 67) | ₹5,877 | ₹5,05,877 |
+| Days Overdue | Daily Interest | Interest Accrued | Total Due |
+|---|---|---|---|
+| 0 (within 45 days) | — | Rs. 0 | Rs. 5,00,000 |
+| 1 (Day 46) | Rs. 267 | Rs. 267 | Rs. 5,00,267 |
+| 15 (Day 60) | Rs. 267 | Rs. 4,007 | Rs. 5,04,007 |
+| 45 (Day 90) | Rs. 267 | Rs. 12,021 | Rs. 5,12,021 |
 
 ---
 
-## 📊 Status Progression
+## 📊 Notice Timeline
 
 ```
-ACTIVE (Day 0-39)
-    ↓
-DUE SOON (Day 40-44)
-    ↓
-DUE TODAY (Day 45)
-    ↓
-OVERDUE (Day 46-59)          ← Template 1: WhatsApp reminder sent
-    ↓
-LEGAL NOTICE SENT (Day 60-66) ← Template 2: Formal email sent
-    ↓
-ESCALATION (Day 67+)          ← Template 3: Final warning sent
-    ↓
-PAID (anytime)                ← Interest freezes
+Day 0   → Invoice date (goods/services delivered)
+Day 45  → Statutory due date (MSMED Act Section 15)
+Day 46  → Interest starts accruing at 19.5% p.a.
+          ✉️ Template 1: Soft email reminder sent
+Day 60  → Legal notice threshold
+          ✉️ Template 2: Formal legal notice sent
+Day 67  → Escalation threshold
+          ✉️ Template 3: Final escalation notice sent
+Day 68+ → MSME Samadhaan complaint eligible
+          🗂️ Export Case File PDF for submission
 ```
 
 ---
 
-## 🎯 Legal Compliance
+## ⚙️ Environment Variables
 
-### MSMED Act 2006 Implementation
+Create a `.env` file in `backend/`:
 
-| Section | Rule | Implementation |
-|---------|------|----------------|
-| **Section 15** | 45-day payment window | `due_date = invoice_date + 45 days` |
-| **Section 16** | 3× RBI compound interest | `interest = principal × 0.195/365 × days_overdue` |
-| **Section 18** | Right to file complaint | MSME Samadhaan portal integration (roadmap) |
-| **Form MSME-1** | Disclosure requirement | Evidence trail with timestamped notices |
+```env
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-or-service-role-key
 
----
+# Auth
+JWT_SECRET=your-random-secret-string
 
-## 🚧 Roadmap
+# AI
+GROQ_API_KEY=gsk_your_groq_key        # console.groq.com — free tier
 
-### Phase 1: MVP ✅ (Current)
-- [x] Invoice upload with OCR
-- [x] RAG Legal Assistant Chatbot
-- [x] Interest calculation engine
-- [x] Status tracking system
-- [x] Dashboard visualization
-- [x] Timeline view
-- [x] Payment marking
+# Email Notifications (Resend)
+RESEND_API_KEY=re_your_resend_key     # resend.com — free tier
+FROM_EMAIL=notices@yourdomain.com
 
-### Phase 2: Automation 🚧 (In Progress)
-- [ ] WhatsApp notification integration
-- [ ] Email notification system
-- [ ] Scheduled trigger checker (cron job)
-- [ ] Message template personalization
-- [ ] Notification logging
-
-### Phase 3: Scale 📅 (Planned)
-- [ ] PostgreSQL database migration
-- [ ] Multi-user authentication
-- [ ] MSME Samadhaan portal API
-- [ ] Bulk invoice upload
-- [ ] Analytics & reporting
-- [ ] Mobile app (React Native)
-
-### Phase 4: Intelligence 🔮 (Future)
-- [ ] LLM-powered legal notice drafting
-- [ ] Predictive payment analytics
-- [ ] Buyer risk scoring
-- [ ] Multi-language UI (Tamil, Hindi)
-- [ ] Voice bot integration
+# WhatsApp (optional — Twilio)
+TWILIO_SID=AC...
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM=whatsapp:+14155238886
+```
 
 ---
 
-## 🤝 Contributing
+## 🚀 Roadmap
 
-We welcome contributions! Please follow these steps:
+### ✅ Phase 1 — Core (Done)
+- [x] OCR invoice extraction
+- [x] Interest calculation engine (MSMED Act Section 16)
+- [x] Live enforcement dashboard
+- [x] Day-by-day timeline visualization
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+### ✅ Phase 2 — Multi-User + Auth (Done)
+- [x] JWT authentication (signup/login)
+- [x] Supabase PostgreSQL migration (away from JSON files)
+- [x] Per-user invoice isolation
+- [x] Multi-invoice portfolio view
 
-### Development Guidelines
+### ✅ Phase 3 — Close the Loop (Done)
+- [x] Email legal notices via Resend (3 templates)
+- [x] Manual notice trigger from dashboard
+- [x] Notice history log in DB
+- [x] 1-click PDF case file export (ReportLab)
+- [x] In-app MSMED Act reference (expandable sections)
+- [x] Samadhaan Portal filing guide (interactive checklist)
+- [x] RAG Legal AI chatbot (Groq + FAISS + LangChain)
+- [x] Persistent chat history per user
 
-- Follow PEP 8 for Python code
-- Use ESLint for JavaScript/React
-- Write clear commit messages
-- Add tests for new features
-- Update documentation
+### 🔮 Phase 4 — Intelligence (Planned)
+- [ ] **Multi-Lingual Voice Legal AI** — Speak in Hindi/Tamil/Telugu/Kannada, get answers in your language (Bhashini API + Web Speech API)
+- [ ] **Buyer Risk Scoring** — ML model to predict payment default probability
+- [ ] **Smart Auto-Scheduler** — Background job auto-fires notices at correct legal trigger days
+- [ ] **Bulk Invoice Upload** — Process multiple PDF invoices in one batch
+- [ ] **Analytics Dashboard** — Portfolio-level stats, recovery rate, amounts at risk
+- [ ] **WhatsApp Notices** — Full Twilio WhatsApp Business integration
+
+---
+
+## 🔐 Security Notes
+
+- Passwords are hashed with **bcrypt** (never stored in plaintext)
+- All invoice data is isolated per user via **Supabase RLS** policies
+- JWT tokens expire in **24 hours**
+- API keys stored in environment variables (never in source code)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Team
-
-- **Person A** — Legal Domain Expert (MSMED Act research, message templates)
-- **Person B** — Backend Engineer (Flask API, invoice engine, interest calculator)
-- **Person C** — OCR Specialist (DocTR integration, PDF extraction)
-- **Person D** — Frontend Engineer (React UI, dashboard, timeline visualization)
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **MSME Ministry, Govt. of India** — for the MSMED Act 2006 framework
-- **DocTR Team** — for the excellent open-source OCR library
-- **Anthropic Claude** — for development assistance and architecture guidance
-- **India's 63 Million MSMEs** — this is for you
+- **MSME Ministry, Govt. of India** — MSMED Act 2006 framework
+- **Bhashini / ULCA** — India's National Language AI Platform
+- **Supabase** — Postgres + Auth platform
+- **Groq** — Ultra-fast LLM inference
+- **DocTR** — Open-source OCR engine
+- **India's 63 Million MSMEs** — this is built for you ⚖️
 
 ---
 
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/Rohinth-KR/DigitalVakeel/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Rohinth-KR/DigitalVakeel/discussions)
-- **Email**: [your-email@example.com](mailto:your-email@example.com)
+- **Repo**: https://github.com/Rohinth-KR/DigitalVakeel
 
 ---
 
-## 📈 Impact
-
-**If we help just 1% of India's MSMEs recover their dues:**
-
-- **630,000 businesses** regain liquidity
-- **₹107 Billion** unlocked in working capital
-- **Thousands of jobs** saved from closure
-- **Legal justice** accessible to the smallest entrepreneur
-
----
-
-## ⭐ Star Us!
-
-If this project helps you or you believe in financial democratization for MSMEs, please **⭐ star this repo** to show your support!
-
----
+> *"Legal justice should not be a privilege of the wealthy. Digital-Vakeel makes it accessible to every MSME in India."*
