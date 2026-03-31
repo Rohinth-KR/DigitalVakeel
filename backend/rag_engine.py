@@ -22,7 +22,7 @@ from langchain_community.vectorstores import FAISS
 VECTORSTORE_DIR = os.path.join(os.path.dirname(__file__), "vectorstore")
 
 # Groq API — for LLM answer generation
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GROQ_MODEL = "llama-3.3-70b-versatile"  # powerful and free on Groq
 

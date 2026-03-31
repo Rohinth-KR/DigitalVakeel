@@ -7,17 +7,21 @@
 import os
 import json
 import requests
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 from datetime import datetime
 
 # ─────────────────────────────────────────────
 #  CONFIG (from env vars — never hardcode in prod)
 # ─────────────────────────────────────────────
 
-TWILIO_SID      = os.environ.get("TWILIO_SID",    "")
-TWILIO_TOKEN    = os.environ.get("TWILIO_TOKEN",  "")
-TWILIO_WA_FROM  = os.environ.get("TWILIO_FROM",   "whatsapp:+14155238886")  # Twilio Sandbox
+TWILIO_SID      = os.environ.get("TWILIO_SID")
+TWILIO_TOKEN    = os.environ.get("TWILIO_TOKEN")
+TWILIO_WA_FROM  = os.environ.get("TWILIO_FROM")  # Twilio Sandbox
 
-RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
+RESEND_API_KEY  = os.environ.get("RESEND_API_KEY")
 FROM_EMAIL      = os.environ.get("FROM_EMAIL",     "onboarding@resend.dev")
 FROM_NAME       = os.environ.get("FROM_NAME",      "Digital-Vakeel Legal")
 
